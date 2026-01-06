@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Edit3 } from 'lucide-react';
-import { Message, Artifact, KnowledgeCollection, AIModel } from '@/types';
+import { Message, Artifact, KnowledgeCollection, AIModel, LibraryArtifact, MentionedAsset } from '@/types';
 import { AppWorkingCard } from './AppWorkingCard';
 import { AppRecommendation } from './app-selection/AppRecommendation';
 import { useAppRecommendation } from '@/hooks/use-app-recommendation';
@@ -8,10 +8,67 @@ import { getSessionContext } from '@/lib/context-bus';
 import { ChatEmptyState } from './chat/ChatEmptyState';
 import { InputArea } from './chat/InputArea';
 import type { AppRecommendation as AppRecommendationType } from '@/types/onboarding';
-import { ProjectData } from '@/types/project';
+import { ProjectData, AttachedFile } from '@/types/project';
+import { appRegistry } from '@/lib/app-registry';
 
 // Converge AI Logo URL
 const CONVERGE_LOGO = 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/image_remove_bg_5abc.png';
+
+// Render text with inline @App badges
+function renderTextWithMentions(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  const mentionPattern = /@(\w+)/g;
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+
+  while ((match = mentionPattern.exec(text)) !== null) {
+    // Add text before the mention
+    if (match.index > lastIndex) {
+      parts.push(
+        <React.Fragment key={`text-${keyIndex++}`}>
+          {text.slice(lastIndex, match.index)}
+        </React.Fragment>
+      );
+    }
+
+    const appName = match[1];
+    const app = appRegistry.getByName(appName);
+
+    if (app) {
+      // Render as inline badge
+      parts.push(
+        <span
+          key={`mention-${keyIndex++}`}
+          className="inline-flex items-center gap-1 bg-white/20 px-1.5 py-0.5 rounded-md mx-0.5 align-middle"
+        >
+          <img src={app.icon} className="w-3.5 h-3.5 object-contain" alt={app.name} />
+          <span className="text-xs font-semibold">@{app.name}</span>
+        </span>
+      );
+    } else {
+      // Keep as plain text if app not found
+      parts.push(
+        <React.Fragment key={`text-${keyIndex++}`}>
+          {match[0]}
+        </React.Fragment>
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(
+      <React.Fragment key={`text-${keyIndex++}`}>
+        {text.slice(lastIndex)}
+      </React.Fragment>
+    );
+  }
+
+  return parts.length > 0 ? parts : text;
+}
 
 interface ChatViewProps {
   messages: Message[];
@@ -29,8 +86,12 @@ interface ChatViewProps {
   // Project mode props
   project?: ProjectData;
   availableKnowledge?: KnowledgeCollection[];
-  onToggleKnowledge?: (knowledgeId: string) => void;
-  onUploadNew?: () => void;
+  attachedFiles?: AttachedFile[];
+  onFilesChange?: (files: AttachedFile[]) => void;
+  libraryArtifacts?: LibraryArtifact[];
+  onUpdateProject?: (updates: Partial<ProjectData>) => void;
+  mentionedAssets?: MentionedAsset[];
+  onRemoveAsset?: (assetId: string) => void;
 }
 
 export function ChatView({
@@ -48,8 +109,12 @@ export function ChatView({
   isCanvasOpen,
   project,
   availableKnowledge = [],
-  onToggleKnowledge,
-  onUploadNew,
+  attachedFiles = [],
+  onFilesChange,
+  libraryArtifacts = [],
+  onUpdateProject,
+  mentionedAssets = [],
+  onRemoveAsset,
 }: ChatViewProps) {
   const hasStarted = messages.length > 0;
   const [selectedApp, setSelectedApp] = React.useState<{name: string, icon: string} | null>(null);
@@ -117,8 +182,10 @@ export function ChatView({
             isInputFocused={isInputFocused}
             project={project}
             availableKnowledge={availableKnowledge}
-            onToggleKnowledge={onToggleKnowledge}
-            onUploadNew={onUploadNew}
+            attachedFiles={attachedFiles}
+            onFilesChange={onFilesChange}
+            libraryArtifacts={libraryArtifacts}
+            onUpdateProject={onUpdateProject}
             placeholder={project ? `Chat with ${project.name} data...` : undefined}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
@@ -150,16 +217,6 @@ export function ChatView({
                       {msg.agentName && <span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider">Agent</span>}
                     </div>
                     
-                    {/* User message with selected app badge */}
-                    {msg.role === 'user' && msg.selectedApp && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded-md">
-                          <img src={msg.selectedApp.icon} className="w-4 h-4 object-contain" alt="" />
-                          <span className="text-xs font-semibold text-gray-700">@{msg.selectedApp.name}</span>
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* Text Bubble */}
                     {msg.type === 'text' && (
                       <div className={`
@@ -168,7 +225,7 @@ export function ChatView({
                           ? 'bg-slate-900 text-white rounded-tr-sm'
                           : 'bg-white border border-slate-100 text-slate-700 rounded-tl-sm shadow-md shadow-slate-100/50'}
                       `}>
-                        {msg.content}
+                        {renderTextWithMentions(msg.content)}
                       </div>
                     )}
                     
@@ -246,6 +303,8 @@ export function ChatView({
               placeholder={project ? `Chat with ${project.name} data...` : "Message Converge.ai..."}
               selectedModel={selectedModel}
               onModelChange={setSelectedModel}
+              mentionedAssets={mentionedAssets}
+              onRemoveAsset={onRemoveAsset}
             />
 
             {/* App Recommendation */}

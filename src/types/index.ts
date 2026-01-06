@@ -46,7 +46,8 @@ export interface Artifact {
   appIcon: string;
   status: ArtifactStatus;
   title: string;
-  output?: string;
+  output?: string;  // Single output (for backward compatibility)
+  outputs?: string[];  // Multiple outputs (for Framia multi-image support)
   createdAt: number;
   messageId: string;
   editUrl?: string;
@@ -69,6 +70,18 @@ export interface LibraryArtifact {
   prompt: string;  // 原始 prompt
   usedCount: number;  // 被引用次数
   isDeleted: boolean;  // 软删除标记
+}
+
+// Mentioned Asset - For @mentioning artifacts in chat
+export interface MentionedAsset {
+  id: string;
+  type: 'artifact' | 'artifact-output';  // 整个artifact或单个产物
+  artifactId: string;
+  outputIndex?: number;  // Framia多图时的索引
+  title: string;
+  thumbnail: string;
+  appIcon: string;
+  appName: string;
 }
 
 // Knowledge Collection

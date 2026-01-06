@@ -191,6 +191,23 @@ export interface RecentArtifact {
   isEmpty: boolean;
 }
 
+// Attached file types
+export type AttachedFileSource = 'library' | 'url' | 'local';
+
+export interface AttachedFile {
+  id: string;
+  source: AttachedFileSource;
+  name: string;
+  // For library files
+  libraryId?: string;
+  // For URL files
+  url?: string;
+  // For local files
+  file?: File;
+  size?: string;
+  type?: string;
+}
+
 export interface ProjectData {
   id: string;
   name: string;
@@ -206,6 +223,7 @@ export interface ProjectData {
   // Project Context Mode fields
   systemPrompt?: string; // Custom instructions/system prompt
   knowledgeIds?: string[]; // Knowledge collection IDs for RAG
-  attachedFileIds?: string[]; // Attached file IDs
+  attachedFileIds?: string[]; // Attached file IDs (deprecated, use attachedFiles)
+  attachedFiles?: AttachedFile[]; // Attached files (Library, URL, Local)
 }
 

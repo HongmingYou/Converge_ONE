@@ -10,15 +10,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { KnowledgeCollection } from '@/types';
 
 interface ProjectSettingsModalProps {
   project: ProjectData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: (updates: Partial<ProjectData>) => void;
-  availableKnowledge?: KnowledgeCollection[];
 }
 
 export function ProjectSettingsModal({
@@ -26,27 +23,14 @@ export function ProjectSettingsModal({
   open,
   onOpenChange,
   onUpdate,
-  availableKnowledge = [],
 }: ProjectSettingsModalProps) {
   const [systemPrompt, setSystemPrompt] = useState(project.systemPrompt || '');
-  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>(
-    project.knowledgeIds || []
-  );
 
   const handleSave = () => {
     onUpdate({
       systemPrompt: systemPrompt.trim() || undefined,
-      knowledgeIds: selectedKnowledgeIds.length > 0 ? selectedKnowledgeIds : undefined,
     });
     onOpenChange(false);
-  };
-
-  const toggleKnowledge = (knowledgeId: string) => {
-    setSelectedKnowledgeIds(prev =>
-      prev.includes(knowledgeId)
-        ? prev.filter(id => id !== knowledgeId)
-        : [...prev, knowledgeId]
-    );
   };
 
   return (
@@ -55,7 +39,7 @@ export function ProjectSettingsModal({
         <DialogHeader>
           <DialogTitle>Project Settings</DialogTitle>
           <DialogDescription>
-            Configure custom instructions and knowledge sources for this project.
+            Configure custom instructions for this project.
           </DialogDescription>
         </DialogHeader>
 
@@ -74,56 +58,6 @@ export function ProjectSettingsModal({
             <p className="text-xs text-gray-500">
               These instructions will be automatically included in all conversations within this project.
             </p>
-          </div>
-
-          {/* Knowledge Sources */}
-          <div className="space-y-2">
-            <Label>Knowledge Sources (RAG)</Label>
-            <p className="text-xs text-gray-500 mb-3">
-              Select knowledge collections to enable private data context for this project.
-            </p>
-            {availableKnowledge.length === 0 ? (
-              <div className="p-4 border border-gray-200 rounded-lg text-center text-sm text-gray-500">
-                No knowledge collections available. Create one in Settings.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {availableKnowledge.map(knowledge => (
-                  <label
-                    key={knowledge.id}
-                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedKnowledgeIds.includes(knowledge.id)}
-                      onChange={() => toggleKnowledge(knowledge.id)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{knowledge.icon || '📚'}</span>
-                        <span className="font-medium text-sm text-gray-900">
-                          {knowledge.name}
-                        </span>
-                        {knowledge.isGlobalContext && (
-                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                            Global
-                          </span>
-                        )}
-                      </div>
-                      {knowledge.description && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {knowledge.description}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        {knowledge.itemCount} {knowledge.itemCount === 1 ? 'item' : 'items'}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanelLeft } from 'lucide-react';
-import { ViewMode, Message, Artifact, ArtifactStatus, AppType, LibraryArtifact, KnowledgeCollection, KnowledgeItem, ChatMode } from '@/types';
+import { ViewMode, Message, Artifact, ArtifactStatus, AppType, LibraryArtifact, KnowledgeCollection, KnowledgeItem, ChatMode, MentionedAsset } from '@/types';
 import { MOCK_FULL_CHATS, MOCK_LIBRARY_ARTIFACTS, MOCK_KNOWLEDGE_COLLECTIONS, MOCK_KNOWLEDGE_ITEMS, MOCK_HISTORY } from '@/data/mock';
 import { Sidebar } from '@/components/Sidebar';
 import { PrimarySidebar } from '@/components/PrimarySidebar';
 import { ChatView } from '@/components/ChatView';
 import { WorkspaceHub } from '@/components/workspace/WorkspaceHub';
 import { LibraryView } from '@/components/library/LibraryView';
-import { ProjectChatHeader } from '@/components/chat/ProjectChatHeader';
 import { MOCK_AGENT_INTEL_DATA } from '@/data/mock';
 import { MOCK_PROJECTS } from '@/data/mockProject';
 import { ProjectData } from '@/types/project';
@@ -18,6 +17,7 @@ import { NewProjectModal } from '@/components/NewProjectModal';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { getSessionContext, buildSystemPrompt, createMockContextData } from '@/lib/context-bus';
 import { toast } from '@/hooks/use-toast';
+import { appRegistry } from '@/lib/app-registry';
 
 // Mock outputs
 const MOCK_OUTPUTS = {
@@ -26,6 +26,14 @@ const MOCK_OUTPUTS = {
   hunter: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop',
   combos: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop',
 };
+
+// Multiple outputs for Framia (multiple generated images)
+const MOCK_FRAMIA_OUTPUTS = [
+  'https://images.unsplash.com/photo-1558655146-9f40138edfeb?q=80&w=1200&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1200&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=1200&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1557683311-eac922347aa1?q=80&w=1200&auto=format&fit=crop',
+];
 
 // App configurations
 const APP_CONFIG: Record<string, { type: AppType; editUrl: string }> = {
@@ -101,6 +109,9 @@ export default function Index() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   
+  // Mentioned Assets State
+  const [mentionedAssets, setMentionedAssets] = useState<MentionedAsset[]>([]);
+  
   // Library State
   const [libraryArtifacts, setLibraryArtifacts] = useState<LibraryArtifact[]>(MOCK_LIBRARY_ARTIFACTS);
   const [knowledgeCollections, setKnowledgeCollections] = useState<KnowledgeCollection[]>(MOCK_KNOWLEDGE_COLLECTIONS);
@@ -145,7 +156,25 @@ export default function Index() {
   };
 
   const handleSendMessage = (text = inputValue, selectedApp?: { name: string; icon: string } | null) => {
-    if (!text.trim()) return;
+    if (!text.trim() && mentionedAssets.length === 0) return;
+
+    // Parse @App mentions from text
+    const mentionPattern = /@(\w+)/g;
+    const mentions: Array<{ name: string; icon: string }> = [];
+    let match;
+    
+    while ((match = mentionPattern.exec(text)) !== null) {
+      const appName = match[1];
+      const app = appRegistry.getByName(appName);
+      if (app) {
+        mentions.push({ name: app.name, icon: app.icon });
+      }
+    }
+
+    // Determine which app to use:
+    // 1. selectedApp (from old badge system, for backward compatibility)
+    // 2. First @mention in text
+    const appToUse = selectedApp || (mentions.length > 0 ? mentions[0] : null);
 
     // Create user message
     const userMsg: Message = {
@@ -153,15 +182,18 @@ export default function Index() {
       role: 'user',
       type: 'text',
       content: text,
-      selectedApp: selectedApp || undefined
+      selectedApp: appToUse || undefined
     };
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setShowMentionMenu(false);
+    
+    // Clear mentioned assets after sending
+    setMentionedAssets([]);
 
-    // Check if an app was selected
-    if (selectedApp && APP_CONFIG[selectedApp.name]) {
-      startAppFlow(selectedApp.name, selectedApp.icon, text);
+    // Check if an app was selected or mentioned
+    if (appToUse && APP_CONFIG[appToUse.name]) {
+      startAppFlow(appToUse.name, appToUse.icon, text);
     } else {
       // Normal response flow
       simulateNormalResponse(text);
@@ -246,6 +278,11 @@ export default function Index() {
     setTimeout(() => {
       const output = MOCK_OUTPUTS[config.type];
       
+      // For Framia, use multiple outputs; for others, use single output
+      const artifactUpdate = config.type === 'framia'
+        ? { outputs: MOCK_FRAMIA_OUTPUTS, output: MOCK_FRAMIA_OUTPUTS[0] } // First image as primary output for backward compatibility
+        : { output };
+      
       // **CONTEXT BUS: Generate context data for this artifact**
       const contextData = createMockContextData({
         id: artifactId,
@@ -257,13 +294,13 @@ export default function Index() {
         createdAt: Date.now(),
         messageId: messageId,
         editUrl: config.editUrl,
-        output: output
+        output: config.type === 'framia' ? MOCK_FRAMIA_OUTPUTS[0] : output
       }, userPrompt);
       
-      // Update artifact with output AND context data
+      // Update artifact with output(s) AND context data
       setArtifacts(prev => prev.map(a => 
         a.id === artifactId 
-          ? { ...a, status: 'completed', output, contextData } 
+          ? { ...a, status: 'completed', ...artifactUpdate, contextData } 
           : a
       ));
 
@@ -285,10 +322,10 @@ export default function Index() {
         createdAt: Date.now(),
         messageId: messageId,
         editUrl: config.editUrl,
-        output: output,
+        ...artifactUpdate,
         contextData: contextData
       };
-      saveToLibrary(completedArtifact, output);
+      saveToLibrary(completedArtifact, config.type === 'framia' ? MOCK_FRAMIA_OUTPUTS[0] : output);
     }, 6500);
   };
 
@@ -405,6 +442,9 @@ export default function Index() {
         messageId: message.id,
         editUrl: config.editUrl,
         output: MOCK_OUTPUTS[message.appData.appType], // Use mock output for completed
+        ...(message.appData.appType === 'framia' 
+          ? { outputs: MOCK_FRAMIA_OUTPUTS, output: MOCK_FRAMIA_OUTPUTS[0] }
+          : {}),
       };
 
       setArtifacts(prev => [...prev, reopenedArtifact]);
@@ -453,6 +493,9 @@ export default function Index() {
       messageId: libraryItem.sessionId,
       editUrl: config?.editUrl,
       output: libraryItem.content,
+      ...(libraryItem.appType === 'framia' 
+        ? { outputs: MOCK_FRAMIA_OUTPUTS, output: MOCK_FRAMIA_OUTPUTS[0] }
+        : {}),
     };
 
     setArtifacts(prev => [...prev, reopenedArtifact]);
@@ -556,13 +599,9 @@ export default function Index() {
     handleUpdateProject({ knowledgeIds: newKnowledgeIds.length > 0 ? newKnowledgeIds : undefined });
   };
 
-  const handleUploadNew = () => {
-    // Open project settings modal or trigger file upload
-    // For now, we'll just show a toast
-    toast({
-      title: "Upload new source",
-      description: "File upload functionality coming soon",
-    });
+  const handleFilesChange = (files: import('@/types/project').AttachedFile[]) => {
+    if (!activeProjectId) return;
+    handleUpdateProject({ attachedFiles: files });
   };
 
   // Chat archiving handler
@@ -727,33 +766,26 @@ export default function Index() {
                   />
                 )}
                 {chatMode === 'project' && currentProject && (
-                  <div className="h-full flex flex-col">
-                    <ProjectChatHeader
-                      project={currentProject}
-                      onUpdateProject={handleUpdateProject}
-                      availableKnowledge={knowledgeCollections}
-                    />
-                    <div className="flex-1 overflow-hidden">
-                      <ChatView 
-                        messages={messages} 
-                        inputValue={inputValue} 
-                        setInputValue={setInputValue} 
-                        handleInputCheck={handleInputCheck} 
-                        handleSendMessage={handleSendMessage} 
-                        showMentionMenu={showMentionMenu} 
-                        setShowMentionMenu={setShowMentionMenu} 
-                        messagesEndRef={messagesEndRef} 
-                        artifacts={artifacts}
-                        activeArtifactId={activeArtifactId}
-                        onOpenArtifact={openArtifactFromMessage}
-                        isCanvasOpen={isCanvasOpen}
-                        project={currentProject}
-                        availableKnowledge={knowledgeCollections}
-                        onToggleKnowledge={handleToggleKnowledge}
-                        onUploadNew={handleUploadNew}
-                      />
-                    </div>
-                  </div>
+                  <ChatView 
+                    messages={messages} 
+                    inputValue={inputValue} 
+                    setInputValue={setInputValue} 
+                    handleInputCheck={handleInputCheck} 
+                    handleSendMessage={handleSendMessage} 
+                    showMentionMenu={showMentionMenu} 
+                    setShowMentionMenu={setShowMentionMenu} 
+                    messagesEndRef={messagesEndRef} 
+                    artifacts={artifacts}
+                    activeArtifactId={activeArtifactId}
+                    onOpenArtifact={openArtifactFromMessage}
+                    isCanvasOpen={isCanvasOpen}
+                    project={currentProject}
+                    availableKnowledge={knowledgeCollections}
+                    attachedFiles={currentProject?.attachedFiles}
+                    onFilesChange={handleFilesChange}
+                    libraryArtifacts={libraryArtifacts}
+                    onUpdateProject={handleUpdateProject}
+                  />
                 )}
                 {chatMode === 'default' && (
                   <ChatView 

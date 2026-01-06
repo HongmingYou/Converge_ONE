@@ -1,14 +1,15 @@
 import React from 'react';
-import { Sparkles, Palette, Code, Search, Workflow } from 'lucide-react';
+import { Sparkles, Palette, Code, Search, Workflow, Settings, FileText, PenTool, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { InputArea } from './InputArea';
 import { AppRecommendation } from '../app-selection/AppRecommendation';
 import { appRegistry } from '@/lib/app-registry';
-import { ArtifactContextData, KnowledgeCollection, AIModel } from '@/types';
+import { ArtifactContextData, KnowledgeCollection, AIModel, LibraryArtifact } from '@/types';
 import type { AppRecommendation as AppRecommendationType } from '@/types/onboarding';
-import { ProjectData } from '@/types/project';
-import { ProjectStatusCard } from './ProjectStatusCard';
+import { ProjectData, AttachedFile } from '@/types/project';
+import { AddFilesButton } from './AddFilesButton';
 import { FloatingAgentBackground } from './FloatingAgentBackground';
-import { ContextPill } from './ContextPill';
+import { ProjectSettingsModal } from './ProjectSettingsModal';
 
 const APP_ICONS = {
   hunter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/screenshot-20251226-012900_54ec.png',
@@ -22,61 +23,25 @@ const QUICK_ACTIONS = [
     id: 'design',
     icon: Palette, 
     label: 'Design Poster', 
-    template: `Design a promotional poster for [Your Event/Product Name]
-
-Style: Modern, minimalist
-Color scheme: [Primary color] with [Accent color]
-Include: Title, tagline, date/CTA, and logo placeholder
-Size: 1080x1920 (Instagram Story)`, 
-    app: 'framia',
+    template: `@Framia Generate Poster for my café`, 
   },
   { 
     id: 'build',
     icon: Code, 
     label: 'Build App', 
-    template: `Build a landing page for [Your Product/Service]
-
-Features needed:
-- Hero section with headline and CTA
-- Feature highlights (3-4 key benefits)
-- Testimonials section
-- Pricing table
-- Contact form
-
-Style: Clean, professional, mobile-responsive`, 
-    app: 'enter',
+    template: `@Enter Build a landing page for my startup`, 
   },
   { 
     id: 'research',
     icon: Search, 
     label: 'Research', 
-    template: `Research market trends for [Industry/Topic]
-
-Focus areas:
-- Current market size and growth rate
-- Key players and competitors
-- Emerging trends and opportunities
-- Target audience demographics
-- Regional insights (focus on [Region])
-
-Deliverable: Summary report with data visualizations`, 
-    app: 'hunter',
+    template: `@Hunter Research market trends for AI in 2026`, 
   },
   { 
-    id: 'automate',
+    id: 'combos',
     icon: Workflow, 
-    label: 'Automate', 
-    template: `Create an automation workflow for [Task Description]
-
-Trigger: When [trigger event happens]
-Actions:
-1. [First action]
-2. [Second action]
-3. [Notification/output]
-
-Integrations needed: [App 1], [App 2]
-Frequency: [One-time / Recurring]`, 
-    app: 'combos',
+    label: 'Combos', 
+    template: `@Framia Generate a logo for my menswear brand "Converge", then use @Enter to build a modern website`, 
   },
 ];
 
@@ -96,13 +61,21 @@ interface ChatEmptyStateProps {
   // Project mode props
   project?: ProjectData;
   availableKnowledge?: KnowledgeCollection[];
-  onToggleKnowledge?: (knowledgeId: string) => void;
-  onUploadNew?: () => void;
+  attachedFiles?: AttachedFile[];
+  onFilesChange?: (files: AttachedFile[]) => void;
+  libraryArtifacts?: LibraryArtifact[];
+  onUpdateProject?: (updates: Partial<ProjectData>) => void;
   placeholder?: string;
   // Model selector props
   selectedModel?: AIModel;
   onModelChange?: (model: AIModel) => void;
 }
+
+const PROJECT_QUICK_ACTIONS = [
+  { id: 'summarize', label: 'Summarize updates', icon: FileText },
+  { id: 'draft', label: 'Draft new section', icon: PenTool },
+  { id: 'continue', label: 'Continue last discussion', icon: MessageSquare },
+];
 
 export function ChatEmptyState({
   inputValue,
@@ -119,46 +92,21 @@ export function ChatEmptyState({
   isInputFocused,
   project,
   availableKnowledge = [],
-  onToggleKnowledge,
-  onUploadNew,
+  attachedFiles = [],
+  onFilesChange,
+  libraryArtifacts = [],
+  onUpdateProject,
   placeholder,
   selectedModel = 'claude-4.5',
   onModelChange,
 }: ChatEmptyStateProps) {
+  const navigate = useNavigate();
   const [isMentionMenuOpen, setIsMentionMenuOpen] = React.useState(false);
-  const [isInputHovered, setIsInputHovered] = React.useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const inputContainerRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [inputCenter, setInputCenter] = React.useState({ x: 0, y: 0 });
 
-  // 更新输入框中心位置（相对于父容器）
-  React.useEffect(() => {
-    const updateInputCenter = () => {
-      if (inputContainerRef.current && containerRef.current) {
-        const inputRect = inputContainerRef.current.getBoundingClientRect();
-        const containerRect = containerRef.current.getBoundingClientRect();
-        setInputCenter({
-          x: inputRect.left + inputRect.width / 2 - containerRect.left,
-          y: inputRect.top + inputRect.height / 2 - containerRect.top,
-        });
-      }
-    };
-
-    // 初始计算
-    const timer = setTimeout(updateInputCenter, 100);
-    
-    // 监听窗口大小变化和滚动
-    window.addEventListener('resize', updateInputCenter);
-    window.addEventListener('scroll', updateInputCenter, true);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updateInputCenter);
-      window.removeEventListener('scroll', updateInputCenter, true);
-    };
-  }, []);
-
-  // Project mode: Show ProjectStatusCard instead of generic welcome
+  // Project mode: Show compact layout with Add Files button
   const isProjectMode = !!project;
 
   // Get all apps for the dock
@@ -172,24 +120,14 @@ export function ChatEmptyState({
   }, []);
 
   const handleQuickAction = (action: typeof QUICK_ACTIONS[0]) => {
-    let app = appRegistry.getApp(action.app);
+    // Set the template text - @App mentions will be rendered as inline badges
+    setInputValue(action.template);
     
-    // Fallback manually if registry lookup fails
-    if (!app) {
-      console.warn(`App ${action.app} not found in registry, using fallback`);
-      const appData: Record<string, { name: string; icon: string; id: string }> = {
-        framia: { name: 'Framia', icon: APP_ICONS.framia, id: 'framia' },
-        enter: { name: 'Enter', icon: APP_ICONS.enter, id: 'enter' },
-        hunter: { name: 'Hunter', icon: APP_ICONS.hunter, id: 'hunter' },
-        combos: { name: 'Combos', icon: APP_ICONS.combos, id: 'combos' },
-      };
-      app = appData[action.app] as any;
-    }
-
-    if (app) {
-      onSelectApp({ name: app.name, icon: app.icon, id: app.id });
-      setInputValue(action.template);
-    }
+    // Focus the editor after setting value
+    setTimeout(() => {
+      const editor = document.querySelector('[contenteditable="true"]') as HTMLElement;
+      editor?.focus();
+    }, 100);
   };
 
   const handleProjectQuickAction = (actionId: string) => {
@@ -211,96 +149,185 @@ export function ChatEmptyState({
     }
   };
 
-  // Project mode: Render ProjectStatusCard
+  // Count context sources for quick actions visibility
+  const knowledgeCount = project?.knowledgeIds?.length || 0;
+  const attachedFilesCount = attachedFiles.length || project?.attachedFileIds?.length || 0;
+  const totalSources = knowledgeCount + attachedFilesCount;
+
+  // Navigation handlers
+  const handleOpenStudio = () => {
+    if (project) {
+      navigate(`/project/${project.id}`);
+    }
+  };
+
+  // Project mode: Render compact layout
   if (isProjectMode && project) {
     return (
-      <div ref={containerRef} className="min-h-full w-full flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-700 relative overflow-visible">
-        {/* Floating Agent Background */}
+      <>
+        <div ref={containerRef} className="min-h-full w-full flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-700 relative overflow-visible">
+          <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl relative z-10 min-h-[calc(100vh-120px)]">
+            {/* Title and Subtitle */}
+            <div className="mb-8 text-center">
+              <h1 className="text-4xl font-bold text-gray-900 tracking-tight mb-3">
+                {project.name}
+              </h1>
+              <p className="text-lg text-gray-500">
+                {project.description || 'Chat with your project data and get AI-powered insights'}
+              </p>
+            </div>
+
+            {/* Toolbar Row: Add Files, Deep Work, Settings */}
+            <div className="mb-6 flex items-center justify-center gap-3 relative z-20">
+              {/* Add Files Button */}
+              {onFilesChange && (
+                <AddFilesButton
+                  attachedFiles={attachedFiles}
+                  onFilesChange={onFilesChange}
+                  availableKnowledge={availableKnowledge}
+                  libraryArtifacts={libraryArtifacts}
+                />
+              )}
+
+              {/* Deep Work in Studio Button */}
+              <button
+                onClick={handleOpenStudio}
+                className="h-7 px-4 rounded-full flex items-center gap-2 transition-all duration-200 bg-white/50 backdrop-blur-sm border border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900 hover:border-indigo-300 text-xs font-medium"
+              >
+                <span>🚀</span>
+                <span>Deep Work in Studio</span>
+              </button>
+
+              {/* Settings Button */}
+              {onUpdateProject && (
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 bg-white/50 backdrop-blur-sm border border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900 hover:border-indigo-300"
+                  title="Project Settings"
+                >
+                  <Settings size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Input Area */}
+            <div
+              ref={inputContainerRef}
+              className="w-full max-w-3xl relative mb-6 z-20"
+            >
+              <InputArea
+                value={inputValue}
+                onChange={setInputValue}
+                onSend={onSend}
+                selectedApp={selectedApp}
+                onSelectApp={onSelectApp}
+                onRemoveApp={onRemoveApp}
+                availableContext={availableContext}
+                placeholder={placeholder || `Chat with ${project.name} data...`}
+                onMentionMenuOpenChange={setIsMentionMenuOpen}
+                selectedModel={selectedModel}
+                onModelChange={onModelChange}
+              />
+
+              {/* App Recommendation */}
+              {showRecommendations && isInputFocused && !isMentionMenuOpen && (
+                <AppRecommendation
+                  recommendations={recommendations}
+                  isVisible={showRecommendations}
+                  onSelect={onRecommendationSelect}
+                  onClose={onCloseRecommendations}
+                />
+              )}
+            </div>
+
+            {/* Quick Actions - Only show if there are sources, placed below input */}
+            {totalSources > 0 && (
+              <div className="w-full max-w-3xl mt-2">
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  {PROJECT_QUICK_ACTIONS.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => handleProjectQuickAction(action.id)}
+                        className="px-3 py-1.5 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-full hover:border-indigo-300 hover:bg-indigo-50/80 transition-all text-xs font-medium text-gray-600 hover:text-indigo-700 flex items-center gap-1.5"
+                      >
+                        <Icon size={14} className="text-gray-500" />
+                        <span>{action.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Project Settings Modal */}
+        {onUpdateProject && (
+          <ProjectSettingsModal
+            project={project}
+            open={isSettingsOpen}
+            onOpenChange={setIsSettingsOpen}
+            onUpdate={onUpdateProject}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Default mode: Generic welcome screen
+  const [isInputHovered, setIsInputHovered] = React.useState(false);
+  const [inputCenter, setInputCenter] = React.useState({ x: 0, y: 0 });
+
+  // 更新输入框中心位置（相对于父容器）- 仅用于默认模式
+  React.useEffect(() => {
+    if (!isProjectMode) {
+      const updateInputCenter = () => {
+        if (inputContainerRef.current && containerRef.current) {
+          const inputRect = inputContainerRef.current.getBoundingClientRect();
+          const containerRect = containerRef.current.getBoundingClientRect();
+          setInputCenter({
+            x: inputRect.left + inputRect.width / 2 - containerRect.left,
+            y: inputRect.top + inputRect.height / 2 - containerRect.top,
+          });
+        }
+      };
+
+      const timer = setTimeout(updateInputCenter, 100);
+      window.addEventListener('resize', updateInputCenter);
+      window.addEventListener('scroll', updateInputCenter, true);
+      
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updateInputCenter);
+        window.removeEventListener('scroll', updateInputCenter, true);
+      };
+    }
+  }, [isProjectMode]);
+
+  return (
+    <div ref={containerRef} className="min-h-full w-full flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-700 relative overflow-visible">
+      {/* Floating Agent Background - Only for default mode */}
+      {!isProjectMode && (
         <FloatingAgentBackground
           isInputFocused={isInputFocused}
           isInputHovered={isInputHovered}
           inputCenterX={inputCenter.x}
           inputCenterY={inputCenter.y}
         />
-
-        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl relative z-10" style={{ paddingTop: '10%' }}>
-          {/* Project Status Card */}
-          <ProjectStatusCard
-            project={project}
-            availableKnowledge={availableKnowledge}
-            onQuickAction={handleProjectQuickAction}
-          />
-
-          {/* Context Pill */}
-          {project && onToggleKnowledge && (
-            <div className="mb-4 flex justify-center relative z-20">
-              <ContextPill
-                project={project}
-                availableKnowledge={availableKnowledge}
-                onToggleKnowledge={onToggleKnowledge}
-                onUploadNew={onUploadNew}
-              />
-            </div>
-          )}
-
-          {/* Input Area */}
-          <div
-            ref={inputContainerRef}
-            className="w-full max-w-3xl relative mb-6 z-20"
-            onMouseEnter={() => setIsInputHovered(true)}
-            onMouseLeave={() => setIsInputHovered(false)}
-          >
-            <InputArea
-              value={inputValue}
-              onChange={setInputValue}
-              onSend={onSend}
-              selectedApp={selectedApp}
-              onSelectApp={onSelectApp}
-              onRemoveApp={onRemoveApp}
-              availableContext={availableContext}
-              placeholder={placeholder || `Chat with ${project.name} data...`}
-              onMentionMenuOpenChange={setIsMentionMenuOpen}
-              selectedModel={selectedModel}
-              onModelChange={onModelChange}
-            />
-
-            {/* App Recommendation */}
-            {showRecommendations && isInputFocused && !isMentionMenuOpen && (
-              <AppRecommendation
-                recommendations={recommendations}
-                isVisible={showRecommendations}
-                onSelect={onRecommendationSelect}
-                onClose={onCloseRecommendations}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Default mode: Generic welcome screen
-  return (
-    <div ref={containerRef} className="min-h-full w-full flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-700 relative overflow-visible">
-      {/* Floating Agent Background */}
-      <FloatingAgentBackground
-        isInputFocused={isInputFocused}
-        isInputHovered={isInputHovered}
-        inputCenterX={inputCenter.x}
-        inputCenterY={inputCenter.y}
-      />
+      )}
 
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl relative z-10">
         {/* Welcome Header */}
         <div className="mb-10 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Sparkles size={24} className="text-indigo-500" />
             <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
-              Welcome to Converge ONE
+              Converge ONE
             </h1>
           </div>
           <p className="text-lg text-gray-500 mt-2">
-            Your AI-Native project for creating anything
+            The AI Workspace where Humans Lead and Expert Agents Work
           </p>
         </div>
 
