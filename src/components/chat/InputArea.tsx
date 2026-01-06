@@ -179,32 +179,6 @@ export function InputArea({
 
   return (
     <>
-      {/* Context Pills */}
-      {availableContext.length > 0 && (
-        <div className="mb-3 flex items-center gap-2 flex-wrap">
-          {availableContext.map((ctx) => (
-            <div
-              key={ctx.sourceArtifactId}
-              className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs group hover:bg-indigo-100 transition-colors"
-              title={ctx.summary}
-            >
-              <span className="font-semibold text-indigo-700">{ctx.sourceName}</span>
-              {ctx.dataSize && (
-                <span className="text-indigo-400">({ctx.dataSize})</span>
-              )}
-              {onRemoveContext && (
-                <button
-                  onClick={() => onRemoveContext(ctx.sourceArtifactId)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-indigo-200 rounded"
-                >
-                  <X size={12} className="text-indigo-600" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Input Container */}
       <div
         ref={containerRef}

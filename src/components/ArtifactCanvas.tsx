@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ExternalLink, Download, Share2, Loader2, Code, Layout, Link2 } from 'lucide-react';
+import { X, ExternalLink, Download, Share2, Loader2, Code, Layout } from 'lucide-react';
 import { Artifact, ArtifactStatus, AppType } from '@/types';
 
 interface ArtifactCanvasProps {
@@ -132,23 +132,6 @@ export function ArtifactCanvas({
 
       {/* Canvas Content */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Context Indicator - Show when artifact has context data */}
-        {activeArtifact.status === 'completed' && activeArtifact.contextData && (
-          <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-2 flex items-center gap-2 text-sm animate-in fade-in slide-in-from-top duration-300">
-            <Link2 size={14} className="text-indigo-600" />
-            <span className="text-indigo-700 font-medium">Using Context:</span>
-            <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-md border border-indigo-200">
-              <span className="text-indigo-600 font-semibold">{activeArtifact.contextData.sourceName}</span>
-              {activeArtifact.contextData.dataSize && (
-                <span className="text-xs text-indigo-400">({activeArtifact.contextData.dataSize})</span>
-              )}
-            </div>
-            <span className="text-xs text-indigo-500 italic">
-              {activeArtifact.contextData.summary.slice(0, 60)}...
-            </span>
-          </div>
-        )}
-        
         {activeArtifact.status !== 'completed' ? (
           // Loading State
           <div className={`h-full flex flex-col items-center justify-center bg-gradient-to-br ${colors.from} via-white ${colors.to} relative`}>

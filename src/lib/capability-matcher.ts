@@ -111,3 +111,4 @@ export function getAppIcon(appName: string): string {
   return app?.icon || '';
 }
 
+

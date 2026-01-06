@@ -69,3 +69,4 @@ export function RecentWorkCard({ artifact, onClick }: RecentWorkCardProps) {
   );
 }
 
+

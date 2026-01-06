@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Edit3, Link2 } from 'lucide-react';
+import { User, Edit3 } from 'lucide-react';
 import { Message, Artifact, KnowledgeCollection, AIModel } from '@/types';
 import { AppWorkingCard } from './AppWorkingCard';
 import { AppRecommendation } from './app-selection/AppRecommendation';
@@ -227,33 +227,6 @@ export function ChatView({
       {hasStarted && (
         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#FDFDFD] via-[#FDFDFD]/90 to-transparent z-20">
           <div className={`mx-auto relative ${isCanvasOpen ? 'max-w-xl' : 'max-w-3xl'}`}>
-            {/* Context Indicator - Show available context */}
-            {availableContext.length > 0 && (
-              <div className="mb-3 flex items-center gap-2 text-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <Link2 size={14} className="text-indigo-500" />
-                <span className="text-gray-600">Available Context:</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {availableContext.map((ctx, idx) => (
-                    <div 
-                      key={idx}
-                      className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs group hover:bg-indigo-100 transition-colors"
-                      title={ctx.summary}
-                    >
-                      <span className="font-semibold text-indigo-700">{ctx.sourceName}</span>
-                      {ctx.dataSize && (
-                        <span className="text-indigo-400">({ctx.dataSize})</span>
-                      )}
-                      <div className="flex items-center gap-0.5 text-indigo-400">
-                        {ctx.tags.slice(0, 2).map((tag, i) => (
-                          <span key={i} className="text-[10px]">#{tag}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Input Area */}
             <InputArea
               value={inputValue}

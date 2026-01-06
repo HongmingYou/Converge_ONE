@@ -14,8 +14,6 @@ import { MOCK_PROJECTS } from '@/data/mockProject';
 import { ProjectData } from '@/types/project';
 import { SearchModal } from '@/components/SearchModal';
 import { ArtifactCanvas } from '@/components/ArtifactCanvas';
-import { ProductIntroModal } from '@/components/onboarding/ProductIntroModal';
-import { AppGuideTooltip } from '@/components/onboarding/AppGuideTooltip';
 import { NewProjectModal } from '@/components/NewProjectModal';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { getSessionContext, buildSystemPrompt, createMockContextData } from '@/lib/context-bus';
@@ -92,21 +90,6 @@ export default function Index() {
   // New Project Modal State
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   
-  // Onboarding state
-  const {
-    shouldShowProductIntro,
-    shouldShowAppGuide,
-    completeProductIntro,
-    completeAppGuide,
-  } = useOnboarding();
-  
-  // App guide state
-  const [showAppGuide, setShowAppGuide] = useState<{
-    appType: AppType;
-    appName: string;
-    appIcon: string;
-  } | null>(null);
-
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -184,42 +167,10 @@ export default function Index() {
       simulateNormalResponse(text);
     }
   };
-  
-  // Handle app guide dismissal and start flow
-  const handleAppGuideClose = () => {
-    if (showAppGuide) {
-      completeAppGuide(showAppGuide.appType);
-      const guideInfo = { ...showAppGuide };
-      setShowAppGuide(null);
-      // Get the last message to extract prompt
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.selectedApp) {
-        // Use setTimeout to ensure state is updated
-        setTimeout(() => {
-          startAppFlow(
-            guideInfo.appName,
-            guideInfo.appIcon,
-            lastMessage.content
-          );
-        }, 100);
-      }
-    }
-  };
 
   const startAppFlow = (appName: string, appIcon: string, userPrompt: string) => {
     const config = APP_CONFIG[appName];
     if (!config) return;
-
-    // Check if we should show app guide
-    if (shouldShowAppGuide(config.type)) {
-      setShowAppGuide({
-        appType: config.type,
-        appName: appName,
-        appIcon: appIcon,
-      });
-      // Don't start the flow yet, wait for user to dismiss the guide
-      return;
-    }
 
     // **CONTEXT BUS INTEGRATION**
     // Step 1: Collect context from all completed artifacts in current session
@@ -872,22 +823,6 @@ export default function Index() {
 
       {/* Search Modal */}
       <SearchModal open={isSearchOpen} onOpenChange={setIsSearchOpen} />
-      
-      {/* Product Intro Modal */}
-      <ProductIntroModal
-        open={shouldShowProductIntro}
-        onClose={completeProductIntro}
-      />
-      
-      {/* App Guide Tooltip */}
-      {showAppGuide && (
-        <AppGuideTooltip
-          appType={showAppGuide.appType}
-          appName={showAppGuide.appName}
-          appIcon={showAppGuide.appIcon}
-          onClose={handleAppGuideClose}
-        />
-      )}
       
       {/* New Project Modal */}
       <NewProjectModal

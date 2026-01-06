@@ -97,3 +97,4 @@ export function getAppIcon(appName: string): string {
   return APP_ICONS[appName as keyof typeof APP_ICONS] || '';
 }
 
+

@@ -72,3 +72,4 @@ export function getAppCapabilities(appName: string): Omit<AppCapability, 'icon'>
   };
 }
 
+
