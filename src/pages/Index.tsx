@@ -10,7 +10,8 @@ import { WorkspaceHub } from '@/components/workspace/WorkspaceHub';
 import { LibraryView } from '@/components/library/LibraryView';
 import { MOCK_AGENT_INTEL_DATA } from '@/data/mock';
 import { MOCK_PROJECTS } from '@/data/mockProject';
-import { ProjectData } from '@/types/project';
+import { ProjectData, AttachedFile } from '@/types/project';
+import { useProjects } from '@/context/ProjectContext';
 import { SearchModal } from '@/components/SearchModal';
 import { ArtifactCanvas } from '@/components/ArtifactCanvas';
 import { NewProjectModal } from '@/components/NewProjectModal';
@@ -90,7 +91,7 @@ export default function Index() {
   // Chat Mode State
   const [chatMode, setChatMode] = useState<ChatMode>('default');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ProjectData[]>(MOCK_PROJECTS);
+  const { projects, addProject, updateProject: updateProjectInContext } = useProjects();
   
   // Chat History State (with projectId support)
   const [chatHistory, setChatHistory] = useState<Array<{ id: string; title: string; time: string; projectId?: string }>>(MOCK_HISTORY);
@@ -555,7 +556,8 @@ export default function Index() {
     setIsNewProjectModalOpen(true);
   };
 
-  const handleCreateProject = (name: string, files: File[]) => {
+  // Create project from Chat page - stay in chat mode
+  const handleCreateProjectFromChat = (name: string, files: AttachedFile[]) => {
     // Create new project
     const newProject: ProjectData = {
       id: `project-${Date.now()}`,
@@ -565,9 +567,10 @@ export default function Index() {
       lastModified: new Date(),
       status: 'draft',
       description: files.length > 0 ? `${files.length} document${files.length > 1 ? 's' : ''} attached` : undefined,
+      attachedFiles: files,
     };
     
-    setProjects(prev => [newProject, ...prev]);
+    addProject(newProject);
     
     // Show toast notification
     toast({
@@ -575,15 +578,45 @@ export default function Index() {
       description: `"${name}" has been created successfully`,
     });
     
-    // Optionally switch to the new project
-    handleProjectClick(newProject.id);
+    // Set as active project and switch to project chat mode
+    setActiveProjectId(newProject.id);
+    setChatMode('project');
   };
+
+  // Create project from Projects page - navigate to Desk
+  const handleCreateProjectFromProjects = (name: string, files: AttachedFile[]) => {
+    // Create new project
+    const newProject: ProjectData = {
+      id: `project-${Date.now()}`,
+      name,
+      type: 'note',
+      sourcesCount: files.length,
+      lastModified: new Date(),
+      status: 'draft',
+      description: files.length > 0 ? `${files.length} document${files.length > 1 ? 's' : ''} attached` : undefined,
+      attachedFiles: files,
+    };
+    
+    addProject(newProject);
+    
+    // Show toast notification
+    toast({
+      title: "Project created",
+      description: `"${name}" has been created successfully`,
+    });
+    
+    // Navigate to Desk page
+    navigate(`/project/${newProject.id}`);
+  };
+
+  // Determine which callback to use based on current view
+  const handleCreateProject = activeView === 'projects' 
+    ? handleCreateProjectFromProjects 
+    : handleCreateProjectFromChat;
 
   const handleUpdateProject = (updates: Partial<ProjectData>) => {
     if (!activeProjectId) return;
-    setProjects(prev => prev.map(p => 
-      p.id === activeProjectId ? { ...p, ...updates } : p
-    ));
+    updateProjectInContext(activeProjectId, updates);
   };
 
   const handleToggleKnowledge = (knowledgeId: string) => {
@@ -812,10 +845,7 @@ export default function Index() {
                   // Navigate to Studio page for the project
                   navigate(`/project/${projectId}`);
                 }}
-                onNewProject={() => {
-                  // Navigate to new project Studio page
-                  navigate('/project/new');
-                }}
+                onNewProject={handleNewProject}
                 onNewChat={() => {
                   setActiveView('chat');
                   startNewChat();
@@ -861,6 +891,7 @@ export default function Index() {
         open={isNewProjectModalOpen}
         onOpenChange={setIsNewProjectModalOpen}
         onCreateProject={handleCreateProject}
+        libraryArtifacts={libraryArtifacts}
       />
     </div>
   );

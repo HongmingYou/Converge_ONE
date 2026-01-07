@@ -195,7 +195,7 @@ export function ChatEmptyState({
                 className="h-7 px-4 rounded-full flex items-center gap-2 transition-all duration-200 bg-white/50 backdrop-blur-sm border border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900 hover:border-indigo-300 text-xs font-medium"
               >
                 <span>🚀</span>
-                <span>Deep Work in Studio</span>
+                <span>Deep Work in Desk</span>
               </button>
 
               {/* Settings Button */}

@@ -874,3 +874,79 @@ export const MOCK_AGENT_INTEL_DATA: CardData[] = [
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
   },
 ];
+
+// Mock Web Search Results
+import { WebSearchResult } from '@/types/project';
+
+export const MOCK_WEB_SEARCH_RESULTS: WebSearchResult[] = [
+  {
+    id: 'search-1',
+    title: 'AI Agent Development Guide - Complete Tutorial',
+    url: 'https://example.com/ai-agent-guide',
+    snippet: 'Learn how to build AI agents from scratch. This comprehensive guide covers everything from basic concepts to advanced implementations.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-2',
+    title: 'Best Practices for AI Agent Architecture',
+    url: 'https://example.com/ai-architecture',
+    snippet: 'Discover the best practices for designing scalable AI agent architectures. Includes patterns, anti-patterns, and real-world examples.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-3',
+    title: 'LangChain vs AutoGPT: Which Framework to Choose?',
+    url: 'https://example.com/langchain-autogpt',
+    snippet: 'A detailed comparison of LangChain and AutoGPT frameworks for building AI agents. Pros, cons, and use cases for each.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-4',
+    title: 'Multi-Agent Systems: Coordination and Communication',
+    url: 'https://example.com/multi-agent-systems',
+    snippet: 'Explore how multiple AI agents can work together to solve complex problems. Includes coordination strategies and communication protocols.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-5',
+    title: 'AI Agent Security: Protecting Your Intelligent Systems',
+    url: 'https://example.com/ai-security',
+    snippet: 'Security considerations for AI agents. Learn about common vulnerabilities and how to protect your agent-based systems.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-6',
+    title: 'Building Conversational AI Agents with Natural Language',
+    url: 'https://example.com/conversational-ai',
+    snippet: 'A practical guide to building conversational AI agents that can understand and respond to natural language inputs effectively.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-7',
+    title: 'AI Agent Performance Optimization Techniques',
+    url: 'https://example.com/ai-performance',
+    snippet: 'Optimize your AI agents for better performance. Covers caching, parallel processing, and resource management strategies.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-8',
+    title: 'Enterprise AI Agent Deployment Strategies',
+    url: 'https://example.com/enterprise-deployment',
+    snippet: 'Learn how to deploy AI agents in enterprise environments. Includes scalability, monitoring, and maintenance best practices.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-9',
+    title: 'AI Agent Testing and Quality Assurance',
+    url: 'https://example.com/ai-testing',
+    snippet: 'Comprehensive guide to testing AI agents. Covers unit testing, integration testing, and performance benchmarking.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+  {
+    id: 'search-10',
+    title: 'The Future of AI Agents: Trends and Predictions',
+    url: 'https://example.com/ai-future',
+    snippet: 'Explore the future of AI agents and emerging trends. Includes predictions about autonomous agents and their impact on industries.',
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com',
+  },
+];

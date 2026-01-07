@@ -192,7 +192,7 @@ export interface RecentArtifact {
 }
 
 // Attached file types
-export type AttachedFileSource = 'library' | 'url' | 'local';
+export type AttachedFileSource = 'library' | 'url' | 'local' | 'search';
 
 export interface AttachedFile {
   id: string;
@@ -206,6 +206,17 @@ export interface AttachedFile {
   file?: File;
   size?: string;
   type?: string;
+  // For web search results
+  searchResultId?: string;
+  description?: string; // For URL and search results
+}
+
+export interface WebSearchResult {
+  id: string;
+  title: string;
+  url: string;
+  snippet: string;
+  favicon?: string;
 }
 
 export interface ProjectData {

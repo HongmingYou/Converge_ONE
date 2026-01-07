@@ -1,6 +1,6 @@
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Studio from "./pages/Studio";
+import Desk from "./pages/Desk";
 import AssetsPage from "./pages/AssetsPage";
 
 export const routers = [
@@ -11,8 +11,8 @@ export const routers = [
     },
     {
       path: "/project/:projectId",
-      name: 'project-studio',
-      element: <Studio />,
+      name: 'project-desk',
+      element: <Desk />,
     },
     {
       path: "/project/assets",

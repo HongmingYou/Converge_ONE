@@ -7,6 +7,7 @@ import { useAppRecommendation } from '@/hooks/use-app-recommendation';
 import { getSessionContext } from '@/lib/context-bus';
 import { ChatEmptyState } from './chat/ChatEmptyState';
 import { InputArea } from './chat/InputArea';
+import { ProjectChatHeader } from './chat/ProjectChatHeader';
 import type { AppRecommendation as AppRecommendationType } from '@/types/onboarding';
 import { ProjectData, AttachedFile } from '@/types/project';
 import { appRegistry } from '@/lib/app-registry';
@@ -164,6 +165,15 @@ export function ChatView({
 
   return (
     <div className="flex flex-col h-full relative overflow-visible">
+      {/* Project Header - Show when project is active */}
+      {project && onUpdateProject && (
+        <ProjectChatHeader
+          project={project}
+          onUpdateProject={onUpdateProject}
+          availableKnowledge={availableKnowledge}
+        />
+      )}
+      
       {/* Scrollable Messages */}
       <div className={`flex-1 px-4 md:px-0 ${hasStarted ? 'overflow-y-auto pb-32' : 'overflow-visible pb-0'}`}>
         {!hasStarted ? (

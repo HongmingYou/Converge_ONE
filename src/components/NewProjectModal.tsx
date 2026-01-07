@@ -1,20 +1,38 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Folder, Upload, X, FileText, File } from 'lucide-react';
+import { Folder } from 'lucide-react';
+import { AttachedFile } from '@/types/project';
+import { LibraryArtifact } from '@/types';
+import { format } from 'date-fns';
+import { AddFilesModal } from './AddFilesModal';
 
 interface NewProjectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateProject: (name: string, files: File[]) => void;
+  onCreateProject: (name: string, files: AttachedFile[]) => void;
+  libraryArtifacts?: LibraryArtifact[];
 }
 
-export function NewProjectModal({ open, onOpenChange, onCreateProject }: NewProjectModalProps) {
+export function NewProjectModal({ 
+  open, 
+  onOpenChange, 
+  onCreateProject,
+  libraryArtifacts = [],
+}: NewProjectModalProps) {
   const [projectName, setProjectName] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<AttachedFile[]>([]);
+  const [isAddFilesModalOpen, setIsAddFilesModalOpen] = useState(false);
+
+  // Set default project name when modal opens
+  useEffect(() => {
+    if (open) {
+      const defaultName = `New Project_${format(new Date(), 'yyyy-MM-dd')}`;
+      setProjectName(defaultName);
+      setFiles([]);
+    }
+  }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,187 +46,151 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject }: NewProj
     onOpenChange(false);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files) {
-      setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const getFileIcon = (file: File) => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext || '')) {
-      return <FileText size={16} className="text-blue-500" />;
-    }
-    return <File size={16} className="text-gray-400" />;
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   const handleClose = () => {
     setProjectName('');
     setFiles([]);
     onOpenChange(false);
   };
 
+  const handleFilesChange = (newFiles: AttachedFile[]) => {
+    setFiles(newFiles);
+    setIsAddFilesModalOpen(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[480px] bg-white border border-gray-200 shadow-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <Folder size={20} className="text-white" />
-            </div>
-            Create New Project
-          </DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-          {/* Project Name Input */}
-          <div className="space-y-2">
-            <label htmlFor="project-name" className="text-sm font-medium text-gray-700">
-              Project Name
-            </label>
-            <Input
-              id="project-name"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Enter project name..."
-              className="h-11 bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-              autoFocus
-            />
-          </div>
-
-          {/* File Upload Area */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Documents <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`
-                relative border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all duration-200
-                ${isDragging 
-                  ? 'border-indigo-400 bg-indigo-50' 
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }
-              `}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.doc,.docx,.txt,.md,.csv,.json"
-              />
-              
-              <div className="flex flex-col items-center gap-2 text-center">
-                <div className={`
-                  w-12 h-12 rounded-full flex items-center justify-center transition-colors
-                  ${isDragging ? 'bg-indigo-100' : 'bg-gray-100'}
-                `}>
-                  <Upload size={20} className={isDragging ? 'text-indigo-600' : 'text-gray-400'} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700">
-                    Drop files here or <span className="text-indigo-600">browse</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    PDF, DOC, TXT, MD, CSV supported
-                  </p>
-                </div>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[600px] bg-white border border-gray-200 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <Folder size={20} className="text-white" />
               </div>
-            </div>
-          </div>
-
-          {/* File List */}
-          {files.length > 0 && (
+              Create New Project
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+            {/* Project Name Input */}
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {files.length} file{files.length > 1 ? 's' : ''} selected
-              </p>
-              <div className="max-h-32 overflow-y-auto space-y-1.5">
-                {files.map((file, index) => (
-                  <div
-                    key={`${file.name}-${index}`}
-                    className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-lg group"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {getFileIcon(file)}
-                      <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                      <span className="text-xs text-gray-400 shrink-0">
-                        {formatFileSize(file.size)}
-                      </span>
-                    </div>
-                    <button
+              <label htmlFor="project-name" className="text-sm font-medium text-gray-700">
+                Project Name
+              </label>
+              <Input
+                id="project-name"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="Enter project name..."
+                className="h-11 bg-gray-50 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Files Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Documents <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                {files.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-gray-500 mb-3">
+                      No files added yet
+                    </p>
+                    <Button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(index);
-                      }}
-                      className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      variant="outline"
+                      onClick={() => setIsAddFilesModalOpen(true)}
+                      className="border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                     >
-                      <X size={14} />
-                    </button>
+                      Add Files
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {files.length} file{files.length > 1 ? 's' : ''} selected
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsAddFilesModalOpen(true)}
+                        className="text-xs text-indigo-600 hover:text-indigo-700"
+                      >
+                        Add More
+                      </Button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {files.map((file) => {
+                        const getSourceIcon = () => {
+                          switch (file.source) {
+                            case 'url':
+                              return '🔗';
+                            case 'search':
+                              return '🔍';
+                            case 'library':
+                              return '📚';
+                            default:
+                              return '📁';
+                          }
+                        };
+                        
+                        return (
+                          <div
+                            key={file.id}
+                            className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-gray-200"
+                          >
+                            <span className="text-sm">{getSourceIcon()}</span>
+                            <span className="text-sm text-gray-700 truncate flex-1">
+                              {file.name}
+                            </span>
+                            {file.size && (
+                              <span className="text-xs text-gray-400 shrink-0">
+                                {file.size}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleClose}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!projectName.trim()}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6"
-            >
-              Create Project
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleClose}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!projectName.trim()}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6"
+              >
+                Create Project
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Files Modal */}
+      <AddFilesModal
+        open={isAddFilesModalOpen}
+        onOpenChange={setIsAddFilesModalOpen}
+        onFilesChange={handleFilesChange}
+        libraryArtifacts={libraryArtifacts}
+        initialFiles={files}
+      />
+    </>
   );
 }
-
-
