@@ -6,9 +6,6 @@ export type ChatMode = 'default' | 'library' | 'project';
 // AI Model types
 export type AIModel = 'claude-4.5' | 'gemini-3-pro' | 'gpt-5';
 
-// Desk mode for immersive reading and writing
-export type DeskMode = 'read' | 'write';
-
 // Chatbot mode for AI Assistant
 export type ChatbotMode = 'agent' | 'chat';
 

@@ -315,6 +315,9 @@ export function ChatView({
               onModelChange={setSelectedModel}
               mentionedAssets={mentionedAssets}
               onRemoveAsset={onRemoveAsset}
+              attachedFiles={attachedFiles}
+              onFilesChange={onFilesChange}
+              libraryArtifacts={libraryArtifacts}
             />
 
             {/* App Recommendation */}

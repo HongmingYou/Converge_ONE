@@ -18,7 +18,6 @@ import {
   Database,
   PanelLeft,
   PanelRight,
-  BookOpen,
   ChevronRight,
   ChevronDown,
   Folder,
@@ -50,7 +49,7 @@ import { cn } from '@/lib/utils';
 import { PrimarySidebar } from '@/components/PrimarySidebar';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { MOCK_PROJECTS } from '@/data/mockProject';
-import { DeskMode, ChatbotMode, AIModel, LibraryArtifact } from '@/types';
+import { ChatbotMode, AIModel, LibraryArtifact } from '@/types';
 import { AttachedFile } from '@/types/project';
 import { AddFilesModal } from '@/components/AddFilesModal';
 import { MOCK_LIBRARY_ARTIFACTS } from '@/data/mock';
@@ -212,15 +211,13 @@ export default function Desk() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSources, setShowSources] = useState(true);
-  const [showStudio, setShowStudio] = useState(false); // Default false for write mode
+  const [showStudio, setShowStudio] = useState(false);
   const [draggedSource, setDraggedSource] = useState<DataSource | null>(null);
   const [isDraggingOverInput, setIsDraggingOverInput] = useState(false);
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null);
   const [isInputFloating, setIsInputFloating] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
   
-  // Desk Mode - default to 'write' (file tree + chat, editor appears on file click)
-  const [workMode, setWorkMode] = useState<DeskMode>('write');
   const [showEditor, setShowEditor] = useState(false);
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['sources', 'notes']);
@@ -282,22 +279,6 @@ export default function Desk() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Track scroll in chat area for input floating
-  useEffect(() => {
-    if (workMode !== 'read') return;
-
-    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-    if (!scrollArea) return;
-
-    const handleScroll = () => {
-      const { scrollTop } = scrollArea;
-      const isScrolled = scrollTop > 100;
-      setIsInputFloating(isScrolled);
-    };
-
-    scrollArea.addEventListener('scroll', handleScroll);
-    return () => scrollArea.removeEventListener('scroll', handleScroll);
-  }, [workMode]);
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -698,84 +679,6 @@ export default function Desk() {
     { label: 'Project', path: '/' },
     { label: project?.name || 'Project', path: `/project/${projectId}` },
   ];
-
-  const renderSourcesPanelContent = () => (
-    <>
-      <div className="h-16 flex items-center justify-between px-5 border-b border-gray-50/30 bg-white sticky top-0 z-10">
-        <h2 className="font-serif font-bold text-lg">Sources</h2>
-        <span className="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full font-medium">
-          {sources.filter(s => s.isSelected).length}/{sources.length}
-        </span>
-      </div>
-      <ScrollArea className="flex-1">
-        <div className="p-3 space-y-1">
-          {sources.map(source => {
-            const Icon = getSourceIcon(source.type);
-            const isDragging = draggedSource?.id === source.id;
-            const isHighlighted = highlightedSourceId === source.id;
-            return (
-              <motion.div 
-                key={source.id}
-                draggable
-                onDragStart={handleDragStart(source) as any}
-                onDragEnd={handleDragEnd}
-                onClick={() => toggleSource(source.id)}
-                animate={{
-                  backgroundColor: isHighlighted 
-                    ? 'rgba(255, 107, 0, 0.15)' 
-                    : source.isSelected 
-                      ? 'rgba(255, 243, 224, 0.5)' 
-                      : 'transparent',
-                  borderColor: isHighlighted 
-                    ? 'rgba(255, 107, 0, 0.4)' 
-                    : source.isSelected 
-                      ? 'rgba(255, 107, 0, 0.2)' 
-                      : 'transparent',
-                  scale: isHighlighted ? 1.02 : 1,
-                }}
-                transition={{
-                  duration: 0.2,
-                  repeat: isHighlighted ? Infinity : 0,
-                  repeatType: 'reverse' as const,
-                  repeatDelay: 0.5,
-                }}
-                className={cn(
-                  "group relative flex items-center gap-3 p-3 rounded-xl cursor-move transition-all duration-200 border",
-                  isDragging && 'opacity-50 scale-95'
-                )}
-              >
-                <div className={cn(
-                  "transition-colors",
-                  source.isSelected ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'
-                )}>
-                  <Icon size={18} />
-                </div>
-                <span className={cn(
-                  "text-sm truncate flex-1",
-                  source.isSelected ? 'font-medium text-gray-900' : 'text-gray-600'
-                )}>
-                  {source.name}
-                </span>
-                {source.isSelected && <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>}
-                {isHighlighted && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute inset-0 rounded-xl border-2 border-orange-400 pointer-events-none"
-                  />
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      </ScrollArea>
-      <div className="p-4 border-t border-gray-50/30">
-        <button className="w-full py-2.5 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 text-gray-500 text-sm font-medium hover:bg-white hover:border-orange-200 hover:text-orange-600 hover:shadow-sm transition-all">
-          <Plus size={16} /> Add Source
-        </button>
-      </div>
-    </>
-  );
 
   const renderFileTreeItem = (item: Note, level = 0) => {
     const hasChildren = notes.some(n => n.parentId === item.id);
@@ -1596,35 +1499,6 @@ export default function Desk() {
                 {sourceCardId ? 'Context loaded from Agent Stream' : 'Context restored from Dashboard'}
               </motion.div>
             )}
-            {/* Mode Toggle */}
-            <div className="flex items-center gap-1 mx-2 p-1 bg-gray-100/80 rounded-lg border border-gray-200/50">
-              <button
-                onClick={() => setWorkMode('read')}
-                className={cn(
-                  "p-1.5 rounded-md transition-all flex items-center gap-2",
-                  workMode === 'read' 
-                    ? "bg-white text-orange-600 shadow-sm ring-1 ring-black/5" 
-                    : "text-gray-400 hover:text-gray-600"
-                )}
-                title="Read Mode"
-              >
-                <BookOpen size={16} />
-                {workMode === 'read' && <span className="text-xs font-medium pr-1">Read</span>}
-              </button>
-              <button
-                onClick={() => setWorkMode('write')}
-                className={cn(
-                  "p-1.5 rounded-md transition-all flex items-center gap-2",
-                  workMode === 'write' 
-                    ? "bg-white text-orange-600 shadow-sm ring-1 ring-black/5" 
-                    : "text-gray-400 hover:text-gray-600"
-                )}
-                title="Write Mode"
-              >
-                <PenTool size={16} />
-                {workMode === 'write' && <span className="text-xs font-medium pr-1">Write</span>}
-              </button>
-            </div>
 
             {/* Panel Toggle Buttons */}
             <div className="flex items-center gap-1 mx-2 px-2 py-1 bg-white/50 rounded-lg border border-gray-200/50">
@@ -1670,7 +1544,7 @@ export default function Desk() {
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="flex-shrink-0 flex flex-col bg-white rounded-[24px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-50/50 overflow-hidden"
         >
-            {workMode === 'read' ? renderSourcesPanelContent() : renderFileTreePanelContent()}
+            {renderFileTreePanelContent()}
         </motion.div>
 
         {/* === Center Panel === */}

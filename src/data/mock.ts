@@ -950,3 +950,45 @@ export const MOCK_WEB_SEARCH_RESULTS: WebSearchResult[] = [
     favicon: 'https://www.google.com/s2/favicons?domain=example.com',
   },
 ];
+
+// Mock Recent Uploads - Simulates files uploaded in previous conversations
+import { RecentUploadItem } from '@/lib/recent-uploads';
+
+export const MOCK_RECENT_UPLOADS: RecentUploadItem[] = [
+  {
+    id: 'recent-1',
+    name: 'Q3_Competitor_Analysis.pdf',
+    type: 'application/pdf',
+    size: '2.4 MB',
+    uploadedAt: Date.now() - 1000 * 60 * 30, // 30 minutes ago
+  },
+  {
+    id: 'recent-2',
+    name: 'Product_Roadmap_2025.docx',
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    size: '1.8 MB',
+    uploadedAt: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
+  },
+  {
+    id: 'recent-3',
+    name: 'Brand_Guidelines_v3.png',
+    type: 'image/png',
+    size: '4.2 MB',
+    thumbnail: 'https://images.unsplash.com/photo-1558655146-9f40138edfeb?q=80&w=200&auto=format&fit=crop',
+    uploadedAt: Date.now() - 1000 * 60 * 60 * 5, // 5 hours ago
+  },
+  {
+    id: 'recent-4',
+    name: 'User_Research_Notes.md',
+    type: 'text/markdown',
+    size: '156 KB',
+    uploadedAt: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
+  },
+  {
+    id: 'recent-5',
+    name: 'Sales_Data_Q4.csv',
+    type: 'text/csv',
+    size: '890 KB',
+    uploadedAt: Date.now() - 1000 * 60 * 60 * 48, // 2 days ago
+  },
+];

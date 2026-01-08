@@ -227,6 +227,9 @@ export function ChatEmptyState({
                 onMentionMenuOpenChange={setIsMentionMenuOpen}
                 selectedModel={selectedModel}
                 onModelChange={onModelChange}
+                attachedFiles={attachedFiles}
+                onFilesChange={onFilesChange}
+                libraryArtifacts={libraryArtifacts}
               />
 
               {/* App Recommendation */}
@@ -350,6 +353,9 @@ export function ChatEmptyState({
             onMentionMenuOpenChange={setIsMentionMenuOpen}
             selectedModel={selectedModel}
             onModelChange={onModelChange}
+            attachedFiles={attachedFiles}
+            onFilesChange={onFilesChange}
+            libraryArtifacts={libraryArtifacts}
           />
 
           {/* App Recommendation */}

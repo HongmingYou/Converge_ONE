@@ -113,6 +113,9 @@ export default function Index() {
   // Mentioned Assets State
   const [mentionedAssets, setMentionedAssets] = useState<MentionedAsset[]>([]);
   
+  // Default Chat Attached Files State (for non-project mode)
+  const [defaultAttachedFiles, setDefaultAttachedFiles] = useState<AttachedFile[]>([]);
+  
   // Library State
   const [libraryArtifacts, setLibraryArtifacts] = useState<LibraryArtifact[]>(MOCK_LIBRARY_ARTIFACTS);
   const [knowledgeCollections, setKnowledgeCollections] = useState<KnowledgeCollection[]>(MOCK_KNOWLEDGE_COLLECTIONS);
@@ -834,6 +837,9 @@ export default function Index() {
                     activeArtifactId={activeArtifactId}
                     onOpenArtifact={openArtifactFromMessage}
                     isCanvasOpen={isCanvasOpen}
+                    attachedFiles={defaultAttachedFiles}
+                    onFilesChange={setDefaultAttachedFiles}
+                    libraryArtifacts={libraryArtifacts}
                   />
                 )}
               </>

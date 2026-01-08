@@ -1,9 +1,11 @@
 import React from 'react';
-import { Grid, Paperclip, Mic, ArrowUp, X } from 'lucide-react';
-import { ArtifactContextData, AIModel, MentionedAsset } from '@/types';
+import { Grid, Mic, ArrowUp, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArtifactContextData, AIModel, MentionedAsset, LibraryArtifact } from '@/types';
 import { AppMentionMenu } from './AppMentionMenu';
 import { appRegistry } from '@/lib/app-registry';
 import { ModelSelector } from './ModelSelector';
+import { AddFilesPopover } from './AddFilesPopover';
+import { AttachedFile } from '@/types/project';
 
 interface InputAreaProps {
   value: string;
@@ -21,6 +23,9 @@ interface InputAreaProps {
   onModelChange?: (model: AIModel) => void;
   mentionedAssets?: MentionedAsset[];
   onRemoveAsset?: (assetId: string) => void;
+  attachedFiles?: AttachedFile[];
+  onFilesChange?: (files: AttachedFile[]) => void;
+  libraryArtifacts?: LibraryArtifact[];
 }
 
 // Parse text to find @App mentions and render them as badges
@@ -84,6 +89,9 @@ export function InputArea({
   onModelChange,
   mentionedAssets = [],
   onRemoveAsset,
+  attachedFiles = [],
+  onFilesChange,
+  libraryArtifacts = [],
 }: InputAreaProps) {
   const editorRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -380,6 +388,67 @@ export function InputArea({
   // Check if there are any @mentions in the text
   const hasMentions = /@\w+/.test(value);
 
+  // Cache thumbnail URLs to avoid creating new blob URLs on every render
+  const thumbnailCacheRef = React.useRef<Map<string, string>>(new Map());
+
+  // Clean up thumbnail URLs when files are removed
+  React.useEffect(() => {
+    const currentFileIds = new Set(attachedFiles.map(f => f.id));
+    const cache = thumbnailCacheRef.current;
+    
+    // Remove thumbnails for files that are no longer attached
+    for (const [fileId, url] of cache.entries()) {
+      if (!currentFileIds.has(fileId)) {
+        URL.revokeObjectURL(url);
+        cache.delete(fileId);
+      }
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      for (const url of cache.values()) {
+        URL.revokeObjectURL(url);
+      }
+      cache.clear();
+    };
+  }, [attachedFiles]);
+
+  const handleRemoveFile = (fileId: string) => {
+    if (!onFilesChange) return;
+    
+    // Clean up thumbnail if exists
+    const thumbnailUrl = thumbnailCacheRef.current.get(fileId);
+    if (thumbnailUrl) {
+      URL.revokeObjectURL(thumbnailUrl);
+      thumbnailCacheRef.current.delete(fileId);
+    }
+    
+    onFilesChange(attachedFiles.filter(f => f.id !== fileId));
+  };
+
+  const getFileIcon = (file: AttachedFile) => {
+    if (file.type?.startsWith('image/')) {
+      return <ImageIcon size={14} className="text-blue-500" />;
+    }
+    return <FileText size={14} className="text-gray-500" />;
+  };
+
+  const getFileThumbnail = (file: AttachedFile): string | null => {
+    if (!file.type?.startsWith('image/') || !file.file) {
+      return null;
+    }
+    
+    // Use cached thumbnail if available
+    if (thumbnailCacheRef.current.has(file.id)) {
+      return thumbnailCacheRef.current.get(file.id)!;
+    }
+    
+    // Create new thumbnail and cache it
+    const thumbnailUrl = URL.createObjectURL(file.file);
+    thumbnailCacheRef.current.set(file.id, thumbnailUrl);
+    return thumbnailUrl;
+  };
+
   return (
     <>
       {/* Mentioned Assets Badges */}
@@ -424,6 +493,55 @@ export function InputArea({
         </div>
       )}
 
+      {/* Attached Files Badges */}
+      {attachedFiles.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2 px-2">
+          {attachedFiles.map((file) => {
+            const thumbnail = getFileThumbnail(file);
+            return (
+              <div
+                key={file.id}
+                className="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 px-2 py-1.5 rounded-lg border border-gray-200 transition-colors group"
+              >
+                {/* Thumbnail or Icon */}
+                {thumbnail ? (
+                  <img
+                    src={thumbnail}
+                    alt={file.name}
+                    className="w-4 h-4 object-cover rounded"
+                  />
+                ) : (
+                  getFileIcon(file)
+                )}
+                {/* File Name */}
+                <span className="text-xs font-medium text-gray-700 max-w-[120px] truncate">
+                  {file.name}
+                </span>
+                {/* File Size */}
+                {file.size && (
+                  <span className="text-xs text-gray-500">
+                    {file.size}
+                  </span>
+                )}
+                {/* Remove Button */}
+                {onFilesChange && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFile(file.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-300 rounded transition-opacity"
+                    title="Remove"
+                  >
+                    <X size={12} className="text-gray-600" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Input Container */}
       <div
         ref={containerRef}
@@ -451,14 +569,15 @@ export function InputArea({
           suppressContentEditableWarning
         />
 
-        {/* Left Toolbar (Apps & Attach) */}
+        {/* Left Toolbar (Files & Apps) */}
         <div className="absolute left-3 bottom-3 flex items-center gap-2 z-20">
-          <button
-            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
-            title="Upload file to ONE's Project"
-          >
-            <Paperclip size={20} />
-          </button>
+          {onFilesChange && (
+            <AddFilesPopover
+              attachedFiles={attachedFiles}
+              onFilesChange={onFilesChange}
+              libraryArtifacts={libraryArtifacts}
+            />
+          )}
           <button
             onClick={() => {
               // Open mention menu without inserting @
