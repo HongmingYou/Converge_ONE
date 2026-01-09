@@ -50,7 +50,7 @@ import { PrimarySidebar } from '@/components/PrimarySidebar';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { MOCK_PROJECTS } from '@/data/mockProject';
 import { ChatbotMode, AIModel, LibraryArtifact } from '@/types';
-import { AttachedFile } from '@/types/project';
+import { AttachedFile, ProjectSource, ProjectFile } from '@/types/project';
 import { AddFilesModal } from '@/components/AddFilesModal';
 import { MOCK_LIBRARY_ARTIFACTS } from '@/data/mock';
 import { useProjects } from '@/context/ProjectContext';
@@ -77,7 +77,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   isHighlighted?: boolean;
-  citations?: number[];
+  citations?: (string | number)[]; // Support both string IDs and number indices
 }
 
 interface Note {
@@ -93,6 +93,8 @@ interface Note {
   isExpanded?: boolean;
   isLoading?: boolean;
   fileType?: 'infographic' | 'ppt' | 'mindmap';
+  sourceId?: string; // 关联的source ID
+  createdBy?: 'user' | 'agent'; // 区分用户创建还是Agent生成
 }
 
 interface SlashCommand {
@@ -113,57 +115,70 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { id: 'ai', label: 'AI Assist', icon: Wand2, description: 'Get AI help with writing' },
 ];
 
-// Mock data - replace with real data
-const MOCK_SOURCES: DataSource[] = [
-  { id: '1', name: 'Q3 2024 Financial Report.pdf', type: 'document', size: '2.4 MB', lastUpdated: '2h ago', isSelected: true },
-  { id: '2', name: 'Project Titan Architecture', type: 'document', size: '856 KB', lastUpdated: '5h ago', isSelected: true },
-  { id: '3', name: 'Competitor Analysis.txt', type: 'document', size: '124 KB', lastUpdated: '1d ago', isSelected: false },
-  { id: '4', name: 'Meeting_Oct12.mp3', type: 'audio', size: '12.5 MB', lastUpdated: '2d ago', isSelected: false },
-];
+// Helper functions to convert Project data to Desk display formats
+const convertProjectSourceToDataSource = (source: ProjectSource): DataSource => {
+  const getType = (sourceType: ProjectSource['type']): DataSource['type'] => {
+    if (sourceType === 'file') {
+      const mimeType = source.metadata.mimeType || '';
+      if (mimeType.startsWith('audio/')) return 'audio';
+      if (mimeType.startsWith('image/')) return 'document';
+      return 'document';
+    }
+    return 'document';
+  };
 
-const MOCK_CHAT_HISTORY: ChatMessage[] = [
-  {
-    id: '1',
-    role: 'user',
-    content: '基于 Q3 财报，帮我总结一下主要增长点。',
-    timestamp: new Date(Date.now() - 3600000),
-  },
-  {
-    id: '2',
-    role: 'assistant',
-    content: '根据 Q3 财报，主要增长点如下：\n\n**云服务收入同比增长 45%**\n主要得益于新企业客户的签约。这表明我们在企业级市场的渗透率正在稳步提升。\n\n**移动端广告业务回暖**\n环比增长 12%，这是一个非常积极的信号，尤其是在上半年广告市场整体疲软的背景下。\n\n**海外市场拓展顺利**\n亚太地区贡献了新增利润的 30%，证明了全球化战略的有效性。',
-    timestamp: new Date(Date.now() - 3500000),
-    citations: [1, 2]
-  },
-];
+  const timeAgo = (timestamp: number): string => {
+    const diff = Date.now() - timestamp;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
 
-const MOCK_NOTES: Note[] = [
-  {
-    id: 101,
-    type: 'note',
-    title: 'Q3 核心增长摘要',
-    content: '云服务增长 45%，移动广告回暖。亚太地区表现强劲，成为新的利润增长引擎。',
-    tags: ['Finance', 'Q3'],
-    date: '2h ago'
-  },
-  {
-    id: 102,
-    type: 'note',
-    title: '技术架构风险点',
-    content: '目前微服务拆分粒度过细，导致服务间调用延迟增加。建议在 Q4 进行服务合并优化。',
-    tags: ['Tech', 'Risk'],
-    date: '1d ago'
-  },
-  {
-    id: 103,
-    type: 'audio-clip',
-    title: 'CEO 关于 AI 战略的发言',
-    content: 'Audio clip extracted from 00:14:20. "AI is not just a feature, it is the foundation."',
-    duration: '02:14',
-    tags: ['Strategy'],
-    date: '2d ago'
-  }
-];
+  return {
+    id: source.id,
+    name: source.name,
+    type: getType(source.type),
+    size: source.metadata.size || 'Unknown',
+    lastUpdated: timeAgo(source.metadata.uploadedAt),
+    isSelected: false,
+  };
+};
+
+const convertProjectFileToNote = (file: ProjectFile): Note => {
+  const timeAgo = (timestamp: number): string => {
+    const diff = Date.now() - timestamp;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  const getFileType = (type: ProjectFile['type']): Note['type'] => {
+    if (type === 'folder') return 'folder';
+    if (type === 'audio-clip') return 'audio-clip';
+    return 'note';
+  };
+
+  return {
+    id: file.id,
+    type: getFileType(file.type),
+    title: file.title,
+    content: file.content,
+    tags: file.metadata.tags,
+    date: timeAgo(file.metadata.updatedAt),
+    parentId: file.parentId,
+    isExpanded: file.metadata.isExpanded,
+    isLoading: file.metadata.isLoading,
+    fileType: file.type === 'infographic' ? 'infographic' : 
+               file.type === 'ppt' ? 'ppt' : 
+               file.type === 'mindmap' ? 'mindmap' : undefined,
+    sourceId: file.sourceId,
+    createdBy: file.createdBy,
+  };
+};
 
 export default function Desk() {
   const { projectId } = useParams();
@@ -177,36 +192,64 @@ export default function Desk() {
   const { getProject, updateProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   
-  // Load project sources from attachedFiles
-  const projectSources: DataSource[] = project?.attachedFiles?.map((file) => ({
-    id: file.id,
-    name: file.name,
-    type: (file.type === 'image' ? 'document' : 'document') as DataSource['type'],
-    size: file.size || 'Unknown',
-    lastUpdated: 'Just now',
-    isSelected: false,
+  // Convert project sources to DataSource format for display
+  // Fallback: if no sources, create from attachedFiles
+  const projectSources: DataSource[] = project?.sources?.map(convertProjectSourceToDataSource) || 
+    (project?.attachedFiles?.map((file) => ({
+      id: file.id,
+      name: file.name,
+      type: (file.type === 'image' ? 'document' : 'document') as DataSource['type'],
+      size: file.size || 'Unknown',
+      lastUpdated: 'Just now',
+      isSelected: false,
+    })) || []);
+  
+  // Convert project files to Note format for display
+  const projectFiles: Note[] = project?.files?.map(convertProjectFileToNote) || [];
+  
+  // Convert project conversations to ChatMessage format
+  const projectChatHistory: ChatMessage[] = project?.conversations?.[0]?.messages.map(msg => ({
+    id: msg.id,
+    role: msg.role,
+    content: msg.content,
+    timestamp: msg.timestamp,
+    citations: msg.citations,
   })) || [];
   
-  const [sources, setSources] = useState<DataSource[]>(projectSources.length > 0 ? projectSources : MOCK_SOURCES);
-  const [projectFiles, setProjectFiles] = useState<AttachedFile[]>(project?.attachedFiles || []);
+  const [sources, setSources] = useState<DataSource[]>(projectSources);
+  const [notes, setNotes] = useState<Note[]>(projectFiles);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(projectChatHistory);
+  const [projectAttachedFiles, setProjectAttachedFiles] = useState<AttachedFile[]>(project?.attachedFiles || []);
   
-  // Update project files when they change
+  // Update data when project changes
   useEffect(() => {
     if (projectId && project) {
-      const updatedSources: DataSource[] = project.attachedFiles?.map((file) => ({
-        id: file.id,
-        name: file.name,
-        type: 'document' as DataSource['type'],
-        size: file.size || 'Unknown',
-        lastUpdated: 'Just now',
-        isSelected: false,
+      // Sources: use project.sources or fallback to attachedFiles
+      const updatedSources = project.sources?.map(convertProjectSourceToDataSource) || 
+        (project.attachedFiles?.map((file) => ({
+          id: file.id,
+          name: file.name,
+          type: (file.type === 'image' ? 'document' : 'document') as DataSource['type'],
+          size: file.size || 'Unknown',
+          lastUpdated: 'Just now',
+          isSelected: false,
+        })) || []);
+      
+      const updatedFiles = project.files?.map(convertProjectFileToNote) || [];
+      const updatedChatHistory = project.conversations?.[0]?.messages.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        citations: msg.citations,
       })) || [];
-      setSources(updatedSources.length > 0 ? updatedSources : MOCK_SOURCES);
-      setProjectFiles(project.attachedFiles || []);
+      
+      setSources(updatedSources);
+      setNotes(updatedFiles);
+      setChatHistory(updatedChatHistory);
+      setProjectAttachedFiles(project.attachedFiles || []);
     }
   }, [projectId, project]);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(MOCK_CHAT_HISTORY);
-  const [notes, setNotes] = useState<Note[]>(MOCK_NOTES);
   const [input, setInput] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isScrolled, setIsScrolled] = useState(false);
@@ -219,8 +262,8 @@ export default function Desk() {
   const [isAIThinking, setIsAIThinking] = useState(false);
   
   const [showEditor, setShowEditor] = useState(false);
-  const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<string[]>(['sources', 'notes']);
+  const [activeNoteId, setActiveNoteId] = useState<string | number | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>(['sources', 'asset']);
   const [activeView, setActiveView] = useState<'chat' | 'projects'>('projects');
   const [isAddFilesModalOpen, setIsAddFilesModalOpen] = useState(false);
   
@@ -406,7 +449,7 @@ export default function Desk() {
       const fileType = isInfoGraphic ? 'infographic' : isPPT ? 'ppt' : 'mindmap';
       const fileName = isInfoGraphic ? '信息图' : isPPT ? 'PPT演示文稿' : '思维导图';
       
-      // Create loading file in file tree
+      // Create loading file in file tree (Agent 生成的文件)
       setNotes(prev => [{
         id: fileId,
         type: 'note',
@@ -416,7 +459,8 @@ export default function Desk() {
         date: 'Just now',
         isLoading: true,
         fileType: fileType as 'infographic' | 'ppt' | 'mindmap',
-        isNew: true
+        isNew: true,
+        createdBy: 'agent', // Agent 生成的文件
       }, ...prev]);
       
       // Show assistant message
@@ -457,7 +501,8 @@ export default function Desk() {
           content: userInput,
           tags: ['New'],
           date: 'Just now',
-          isNew: true
+          isNew: true,
+          createdBy: 'agent', // Agent 生成的笔记
         }, ...prev]);
       }, 800);
     }
@@ -609,7 +654,8 @@ export default function Desk() {
       tags: ['New'],
       date: 'Just now',
       isNew: true,
-      parentId: parentId
+      parentId: parentId,
+      createdBy: 'user', // 用户创建的文件
     };
     setNotes(prev => [newNote, ...prev]);
     setActiveNoteId(newId);
@@ -634,7 +680,8 @@ export default function Desk() {
       date: 'Just now',
       isNew: true,
       parentId: parentId,
-      isExpanded: true
+      isExpanded: true,
+      createdBy: 'user', // 用户创建的文件夹
     };
     setNotes(prev => [newFolder, ...prev]);
     startRenaming(newFolder);
@@ -676,13 +723,34 @@ export default function Desk() {
 
   // Mock breadcrumb data
   const breadcrumbItems = [
-    { label: 'Project', path: '/' },
+    { label: 'Project', path: '/?view=projects' },
     { label: project?.name || 'Project', path: `/project/${projectId}` },
   ];
 
-  const renderFileTreeItem = (item: Note, level = 0) => {
+  const renderFileTreeItem = (item: Note, level = 0, isInsideVirtualFolder = false) => {
     const hasChildren = notes.some(n => n.parentId === item.id);
-    const paddingLeft = level * 16 + 12;
+    // IDE 风格的缩进：每级 12px，基础 8px
+    const paddingLeft = level * 12 + 8;
+
+    // 获取文件图标
+    const getFileIcon = () => {
+      if (item.isLoading) {
+        return <Loader2 size={16} className="text-orange-500 animate-spin flex-shrink-0" />;
+      }
+      if (item.fileType === 'infographic') {
+        return <Image size={16} className={cn("flex-shrink-0", activeNoteId === item.id ? "text-orange-500" : "text-emerald-500")} />;
+      }
+      if (item.fileType === 'ppt') {
+        return <Presentation size={16} className={cn("flex-shrink-0", activeNoteId === item.id ? "text-orange-500" : "text-red-500")} />;
+      }
+      if (item.fileType === 'mindmap') {
+        return <Network size={16} className={cn("flex-shrink-0", activeNoteId === item.id ? "text-orange-500" : "text-purple-500")} />;
+      }
+      if (item.type === 'audio-clip') {
+        return <Mic size={16} className={cn("flex-shrink-0", activeNoteId === item.id ? "text-orange-500" : "text-amber-500")} />;
+      }
+      return <FileText size={16} className={cn("flex-shrink-0", activeNoteId === item.id ? "text-orange-500" : "text-gray-400")} />;
+    };
 
     return (
         <div key={item.id}>
@@ -690,51 +758,45 @@ export default function Desk() {
                 <ContextMenuTrigger>
                     <div 
                         onClick={() => {
-                            if (item.isLoading) return; // Don't open loading files
+                            if (item.isLoading) return;
                             if (item.type === 'folder') {
                                 toggleFolder(item.id);
                             } else {
-                                setActiveNoteId(item.id as number);
+                                setActiveNoteId(item.id);
                                 setShowEditor(true);
                             }
                         }}
                         className={cn(
-                            "flex items-center gap-2 py-1.5 pr-2 rounded-lg text-sm transition-colors group relative",
+                            "flex items-center h-7 pr-2 text-[13px] transition-colors group relative",
                             item.isLoading 
                                 ? "cursor-wait text-gray-400" 
-                                : "cursor-pointer hover:bg-gray-50 text-gray-600",
-                            activeNoteId === item.id && !item.isLoading && "bg-orange-50 text-orange-700 font-medium"
+                                : "cursor-pointer hover:bg-gray-100/80 text-gray-700",
+                            activeNoteId === item.id && !item.isLoading && "bg-orange-50 text-orange-700"
                         )}
                         style={{ paddingLeft }}
                     >
-                        <span className="flex-shrink-0">
-                            {item.type === 'folder' ? (
-                                <div className="flex items-center">
-                                    <ChevronRight 
-                                        size={14} 
-                                        className={cn(
-                                            "text-gray-400 transition-transform mr-1", 
-                                            item.isExpanded && "rotate-90",
-                                            !hasChildren && "invisible"
-                                        )} 
-                                    />
-                                    <FolderIcon size={14} className="text-blue-500 fill-blue-500/20" />
-                                </div>
-                            ) : item.isLoading ? (
-                                <Loader2 size={14} className="text-orange-500 animate-spin" />
-                            ) : item.fileType === 'infographic' ? (
-                                <Image size={14} className={activeNoteId === item.id ? "text-orange-500" : "text-gray-400"} />
-                            ) : item.fileType === 'ppt' ? (
-                                <Presentation size={14} className={activeNoteId === item.id ? "text-orange-500" : "text-gray-400"} />
-                            ) : item.fileType === 'mindmap' ? (
-                                <Network size={14} className={activeNoteId === item.id ? "text-orange-500" : "text-gray-400"} />
-                            ) : item.type === 'audio-clip' ? (
-                                <Mic size={14} className={activeNoteId === item.id ? "text-orange-500" : "text-gray-400"} />
-                            ) : (
-                                <FileText size={14} className={activeNoteId === item.id ? "text-orange-500" : "text-gray-400"} />
-                            )}
-                        </span>
+                        {/* 文件夹展开箭头或占位 */}
+                        {item.type === 'folder' ? (
+                            <ChevronRight 
+                                size={16} 
+                                className={cn(
+                                    "text-gray-400 transition-transform flex-shrink-0 mr-0.5", 
+                                    item.isExpanded && "rotate-90",
+                                    !hasChildren && "opacity-0"
+                                )} 
+                            />
+                        ) : (
+                            <span className="w-[16px] flex-shrink-0 mr-0.5" />
+                        )}
+
+                        {/* 图标 */}
+                        {item.type === 'folder' ? (
+                            <FolderIcon size={16} className="text-blue-500 fill-blue-500/20 flex-shrink-0 mr-2" />
+                        ) : (
+                            <span className="mr-2">{getFileIcon()}</span>
+                        )}
                         
+                        {/* 文件名 */}
                         {editingId === item.id ? (
                             <input
                                 autoFocus
@@ -742,32 +804,35 @@ export default function Desk() {
                                 onChange={(e) => setEditingName(e.target.value)}
                                 onBlur={handleRename}
                                 onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-                                className="flex-1 bg-white border border-blue-300 rounded px-1 py-0.5 text-xs focus:outline-none min-w-0"
+                                className="flex-1 bg-white border border-blue-400 rounded px-1.5 py-0.5 text-[13px] focus:outline-none min-w-0"
                                 onClick={(e) => e.stopPropagation()}
                             />
                         ) : (
-                            <span className={cn("truncate flex-1", item.isLoading && "text-gray-400 italic")}>
+                            <span className={cn(
+                                "truncate flex-1",
+                                item.isLoading && "text-gray-400 italic"
+                            )}>
                                 {item.title}
-                                {item.isLoading && <span className="ml-2 text-xs text-gray-400">(生成中...)</span>}
+                                {item.isLoading && <span className="ml-1.5 text-[11px] text-gray-400">(生成中...)</span>}
                             </span>
                         )}
 
-                        {/* Hover Actions */}
+                        {/* Hover Actions - 仅文件夹 */}
                         {item.type === 'folder' && (
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 bg-gray-50/80 backdrop-blur-sm rounded">
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleCreateFolder(item.id); }}
-                                    className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-gray-900"
+                                    className="p-0.5 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-700"
                                     title="New Folder"
                                 >
-                                    <FolderPlus size={12} />
+                                    <FolderPlus size={14} />
                                 </button>
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleCreateNote(item.id); }}
-                                    className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-gray-900"
+                                    className="p-0.5 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-700"
                                     title="New Note"
                                 >
-                                    <FilePlus size={12} />
+                                    <FilePlus size={14} />
                                 </button>
                             </div>
                         )}
@@ -810,7 +875,7 @@ export default function Desk() {
                     >
                         {notes
                             .filter(n => n.parentId === item.id)
-                            .map(child => renderFileTreeItem(child, level + 1))
+                            .map(child => renderFileTreeItem(child, level + 1, isInsideVirtualFolder))
                         }
                     </motion.div>
                 )}
@@ -820,128 +885,240 @@ export default function Desk() {
   };
 
   const handleFilesChange = (newFiles: AttachedFile[]) => {
-    setProjectFiles(newFiles);
-    // Update sources from files
-    const updatedSources: DataSource[] = newFiles.map((file) => ({
-      id: file.id,
-      name: file.name,
-      type: 'document' as DataSource['type'],
-      size: file.size || 'Unknown',
-      lastUpdated: 'Just now',
-      isSelected: false,
-    }));
-    setSources(updatedSources);
-    setIsAddFilesModalOpen(false);
+    if (!projectId || !project) return;
     
-    // Update project in Context
-    if (projectId) {
-      updateProject(projectId, { 
-        attachedFiles: newFiles,
-        sourcesCount: newFiles.length,
-      });
-    }
+    // Convert AttachedFile to ProjectSource
+    const newSources: ProjectSource[] = newFiles.map((file) => ({
+      id: file.id,
+      type: file.source === 'library' ? 'library' : 
+            file.source === 'url' ? 'url' : 
+            file.source === 'search' ? 'search' : 'file',
+      name: file.name,
+      content: file.description || '',
+      metadata: {
+        size: file.size,
+        uploadedAt: Date.now(),
+        indexed: false,
+        mimeType: file.type,
+      },
+      attachedFileId: file.id,
+    }));
+    
+    // Merge with existing sources (avoid duplicates)
+    const existingSourceIds = new Set(project.sources?.map(s => s.id) || []);
+    const uniqueNewSources = newSources.filter(s => !existingSourceIds.has(s.id));
+    const updatedSources = [...(project.sources || []), ...uniqueNewSources];
+    
+    // Update project
+    updateProject(projectId, {
+      attachedFiles: newFiles,
+      sources: updatedSources,
+      sourcesCount: updatedSources.length,
+    });
+    
+    setIsAddFilesModalOpen(false);
   };
 
-  const renderFileTreePanelContent = () => (
-    <>
-        <div className="h-16 flex items-center justify-between px-5 border-b border-gray-50/30 bg-white sticky top-0 z-10">
-            <h2 className="font-serif font-bold text-lg">Files</h2>
-            <div className="flex items-center gap-1">
+  const renderFileTreePanelContent = () => {
+    // 分组文件：agent 生成的 vs 用户创建的
+    const agentFiles = notes.filter(n => n.createdBy === 'agent' && !n.parentId);
+    const userFiles = notes.filter(n => n.createdBy === 'user' && !n.parentId);
+    
+    // 渲染虚拟文件夹内的文件项（无 chevron 占位）
+    const renderVirtualFolderItem = (item: Note | DataSource, isSource = false) => {
+      if (isSource) {
+        const source = item as DataSource;
+        const Icon = getSourceIcon(source.type);
+        return (
+          <div 
+            key={source.id} 
+            draggable
+            onDragStart={handleDragStart(source)}
+            onDragEnd={handleDragEnd}
+            onClick={() => {
+              if (!project) return;
+              const existingFile = project.files?.find(f => f.sourceId === source.id);
+              if (existingFile) {
+                setActiveNoteId(existingFile.id as string | number);
+                setShowEditor(true);
+              } else {
+                const projectSource = project.sources?.find(s => s.id === source.id);
+                if (!projectSource) return;
+                const newFile: ProjectFile = {
+                  id: `file-${Date.now()}`,
+                  type: 'note',
+                  title: projectSource.name,
+                  content: projectSource.content || `Content from ${projectSource.name}`,
+                  sourceId: projectSource.id,
+                  createdBy: 'user',
+                  metadata: {
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    tags: ['Source'],
+                    wordCount: (projectSource.content || '').split(/\s+/).filter(w => w.length > 0).length,
+                  },
+                };
+                const updatedFiles = [...(project.files || []), newFile];
+                updateProject(projectId!, { files: updatedFiles });
+                const newNote = convertProjectFileToNote(newFile);
+                setNotes(prev => [newNote, ...prev]);
+                setActiveNoteId(newFile.id as string | number);
+                setShowEditor(true);
+              }
+            }}
+            className="flex items-center h-7 pl-8 pr-2 hover:bg-gray-100/80 cursor-pointer text-[13px] text-gray-700 group"
+          >
+            <Icon size={16} className="text-gray-400 group-hover:text-gray-600 flex-shrink-0 mr-2" />
+            <span className="truncate">{source.name}</span>
+          </div>
+        );
+      }
+      
+      // Agent 文件项
+      const note = item as Note;
+      const getFileIcon = () => {
+        if (note.isLoading) return <Loader2 size={16} className="text-orange-500 animate-spin flex-shrink-0" />;
+        if (note.fileType === 'infographic') return <Image size={16} className="text-emerald-500 flex-shrink-0" />;
+        if (note.fileType === 'ppt') return <Presentation size={16} className="text-red-500 flex-shrink-0" />;
+        if (note.fileType === 'mindmap') return <Network size={16} className="text-purple-500 flex-shrink-0" />;
+        if (note.type === 'audio-clip') return <Mic size={16} className="text-amber-500 flex-shrink-0" />;
+        return <FileText size={16} className="text-gray-400 flex-shrink-0" />;
+      };
+      
+      return (
+        <div 
+          key={note.id}
+          onClick={() => {
+            if (note.isLoading) return;
+            setActiveNoteId(note.id);
+            setShowEditor(true);
+          }}
+          className={cn(
+            "flex items-center h-7 pl-8 pr-2 text-[13px] cursor-pointer group",
+            note.isLoading ? "text-gray-400 cursor-wait" : "text-gray-700 hover:bg-gray-100/80",
+            activeNoteId === note.id && !note.isLoading && "bg-orange-50 text-orange-700"
+          )}
+        >
+          <span className="mr-2">{getFileIcon()}</span>
+          <span className={cn("truncate", note.isLoading && "italic")}>
+            {note.title}
+            {note.isLoading && <span className="ml-1.5 text-[11px] text-gray-400">(生成中...)</span>}
+          </span>
+        </div>
+      );
+    };
+    
+    return (
+      <>
+        <div className="h-12 flex items-center justify-between px-4 border-b border-gray-100 bg-white sticky top-0 z-10">
+            <h2 className="font-semibold text-[13px] text-gray-600 uppercase tracking-wide">Files</h2>
+            <div className="flex items-center gap-0.5">
                 <button 
                     onClick={() => setIsAddFilesModalOpen(true)}
-                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-900 transition-colors"
+                    className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-colors"
                     title="Upload Files"
                 >
                     <Upload size={16} />
                 </button>
                 <button 
                     onClick={() => handleCreateFolder()}
-                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-900 transition-colors"
-                    title="New Folder (Root)"
+                    className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-colors"
+                    title="New Folder"
                 >
                     <FolderPlus size={16} />
                 </button>
                 <button 
                     onClick={() => handleCreateNote()}
-                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-900 transition-colors"
-                    title="New Note (Root)"
+                    className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-colors"
+                    title="New Note"
                 >
                     <FilePlus size={16} />
                 </button>
             </div>
         </div>
         <ScrollArea className="flex-1">
-            <div className="p-3 space-y-0.5">
-                {/* Sources Folder - Fixed */}
+            <div className="py-1">
+                {/* Sources Folder - 上传的文件和搜索的文件 */}
                 <div>
-                    <button 
+                    <div 
                         onClick={() => setExpandedFolders(prev => prev.includes('sources') ? prev.filter(f => f !== 'sources') : [...prev, 'sources'])}
-                        className="flex items-center gap-2 w-full py-1.5 px-2 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                        className="flex items-center h-7 pl-2 pr-2 hover:bg-gray-100/80 cursor-pointer text-[13px] text-gray-700 group"
                     >
-                        {expandedFolders.includes('sources') ? <ChevronDown size={14} className="text-gray-400"/> : <ChevronRight size={14} className="text-gray-400"/>}
-                        <FolderIcon size={14} className="text-orange-500 fill-orange-500/20" />
-                        Sources
-                    </button>
+                        <ChevronRight 
+                          size={16} 
+                          className={cn(
+                            "text-gray-400 transition-transform flex-shrink-0 mr-0.5",
+                            expandedFolders.includes('sources') && "rotate-90"
+                          )} 
+                        />
+                        <FolderIcon size={16} className="text-orange-500 fill-orange-500/20 flex-shrink-0 mr-2" />
+                        <span className="font-medium">Sources</span>
+                        <span className="text-[11px] text-gray-400 ml-auto">{sources.length}</span>
+                    </div>
                     <AnimatePresence>
                         {expandedFolders.includes('sources') && (
                             <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden pl-6"
+                                className="overflow-hidden"
                             >
-                                <div className="border-l border-gray-100 py-0.5 space-y-0.5">
-                                    {sources.map(source => {
-                                        const Icon = getSourceIcon(source.type);
-                                        return (
-                                            <div 
-                                                key={source.id} 
-                                                draggable
-                                                onDragStart={handleDragStart(source)}
-                                                onDragEnd={handleDragEnd}
-                                                onClick={() => {
-                                                  // Create a note for this source and open editor
-                                                  const sourceNote: Note = {
-                                                    id: `source-${source.id}`,
-                                                    type: 'note',
-                                                    title: source.name,
-                                                    content: `Content from ${source.name}`,
-                                                    tags: ['Source'],
-                                                    date: 'Just now',
-                                                  };
-                                                  // Add to notes if not exists
-                                                  setNotes(prev => {
-                                                    const exists = prev.find(n => n.id === sourceNote.id);
-                                                    if (!exists) {
-                                                      return [sourceNote, ...prev];
-                                                    }
-                                                    return prev;
-                                                  });
-                                                  setActiveNoteId(sourceNote.id as number);
-                                                  setShowEditor(true);
-                                                }}
-                                                className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 cursor-pointer text-sm text-gray-600 group ml-2"
-                                            >
-                                                <Icon size={14} className="text-gray-400 group-hover:text-gray-600" />
-                                                <span className="truncate">{source.name}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                {sources.length === 0 ? (
+                                    <div className="h-7 pl-8 flex items-center text-[12px] text-gray-400 italic">
+                                        No sources yet
+                                    </div>
+                                ) : (
+                                    sources.map(source => renderVirtualFolderItem(source, true))
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* Dynamic File Tree (Root Level) */}
-                {notes
-                    .filter(n => !n.parentId)
-                    .map(item => renderFileTreeItem(item, 0))
-                }
+                {/* Asset Folder - Agent 生成的文件 */}
+                <div>
+                    <div 
+                        onClick={() => setExpandedFolders(prev => prev.includes('asset') ? prev.filter(f => f !== 'asset') : [...prev, 'asset'])}
+                        className="flex items-center h-7 pl-2 pr-2 hover:bg-gray-100/80 cursor-pointer text-[13px] text-gray-700 group"
+                    >
+                        <ChevronRight 
+                          size={16} 
+                          className={cn(
+                            "text-gray-400 transition-transform flex-shrink-0 mr-0.5",
+                            expandedFolders.includes('asset') && "rotate-90"
+                          )} 
+                        />
+                        <Sparkles size={16} className="text-purple-500 flex-shrink-0 mr-2" />
+                        <span className="font-medium">Asset</span>
+                        <span className="text-[11px] text-gray-400 ml-auto">{agentFiles.length}</span>
+                    </div>
+                    <AnimatePresence>
+                        {expandedFolders.includes('asset') && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                {agentFiles.length === 0 ? (
+                                    <div className="h-7 pl-8 flex items-center text-[12px] text-gray-400 italic">
+                                        No assets yet
+                                    </div>
+                                ) : (
+                                    agentFiles.map(item => renderVirtualFolderItem(item, false))
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* User Files - 用户创建的文件（直接显示在根目录） */}
+                {userFiles.map(item => renderFileTreeItem(item, 0))}
             </div>
         </ScrollArea>
-    </>
-  );
+      </>
+    );
+  };
 
   const renderChatContent = (isCompact: boolean) => {
     const filteredCommands = SLASH_COMMANDS.filter(cmd => 
@@ -1470,7 +1647,14 @@ export default function Desk() {
       {/* Left Navigation Sidebar */}
       <PrimarySidebar 
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={(view) => {
+          // If clicking Chat or Settings, navigate to home page
+          if (view === 'chat' || view === 'settings') {
+            navigate(view === 'chat' ? '/' : '/?view=settings');
+          } else if (view === 'projects') {
+            setActiveView(view);
+          }
+        }}
         recentProjects={MOCK_PROJECTS}
         onProjectClick={(projectId) => navigate(`/project/${projectId}`)}
         onLogoClick={() => navigate('/')}
@@ -1586,7 +1770,7 @@ export default function Desk() {
         onOpenChange={setIsAddFilesModalOpen}
         onFilesChange={handleFilesChange}
         libraryArtifacts={MOCK_LIBRARY_ARTIFACTS}
-        initialFiles={projectFiles}
+        initialFiles={projectAttachedFiles}
       />
     </div>
   );

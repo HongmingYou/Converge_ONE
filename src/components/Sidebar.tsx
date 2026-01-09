@@ -3,6 +3,7 @@ import { Search, MessageSquare, Edit3, PanelLeftClose, Package, Folder, Plus, Ch
 import { ViewMode, ChatMode } from '@/types';
 import { MOCK_HISTORY } from '@/data/mock';
 import { ProjectData } from '@/types/project';
+import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -277,63 +278,72 @@ export function Sidebar({
                   ${isDragging && !isDragOver ? 'opacity-60' : ''}
                 `}
               >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {/* Folder icon with expand/collapse functionality */}
-                  <button
+                <div className="flex items-center flex-1 min-w-0">
+                  {/* Zone 1: 文件夹图标 (固定 20px) */}
+                  <div className="w-5 flex items-center justify-center flex-shrink-0">
+                    <Folder size={16} />
+                  </div>
+
+                  {/* Zone 2: 展开控制区 (固定 20px) */}
+                  <div 
+                    className="w-5 flex items-center justify-center flex-shrink-0 cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (hasChats) {
-                        toggleProjectExpansion(project.id);
-                      } else {
-                        handleProjectClick(project.id);
-                      }
+                      toggleProjectExpansion(project.id);
                     }}
-                    className="flex items-center gap-1 p-0.5 hover:bg-gray-300 rounded transition-colors group/icon"
                   >
-                    <Folder size={16} className="shrink-0" />
-                    {hasChats && (
-                      <span className="transition-transform duration-200">
-                        {isExpanded ? (
-                          <ChevronDown size={12} className="text-gray-500" />
-                        ) : (
-                          <ChevronRight size={12} className="text-gray-500" />
-                        )}
-                      </span>
-                    )}
-                  </button>
-                  
-                  <div 
-                    className="flex items-center gap-2 flex-1 min-w-0"
-                    onClick={() => handleProjectClick(project.id)}
-                  >
-                    <span className="text-[15px] font-medium truncate">{project.name}</span>
+                    <ChevronRight 
+                      size={14} 
+                      className={cn(
+                        "text-gray-400 transition-transform hover:text-gray-600",
+                        isExpanded && "rotate-90"
+                      )}
+                    />
                   </div>
+
+                  {/* Zone 3: 文字区 */}
+                  <span 
+                    className="text-[15px] font-medium truncate flex-1 ml-2 cursor-pointer"
+                    onClick={() => {
+                      handleProjectClick(project.id);
+                      // 自动展开
+                      setExpandedProjectIds(prev => new Set(prev).add(project.id));
+                    }}
+                  >
+                    {project.name}
+                  </span>
                 </div>
               </div>
 
               {/* Nested chats - shown when expanded */}
-              {isExpanded && hasChats && (
-                <div className="ml-6 space-y-0.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                  {projectChats.map(chat => (
-                    <div
-                      key={chat.id}
-                      onClick={() => {
-                        setChatMode('project');
-                        onProjectClick(project.id);
-                        loadChatHistory(chat.id);
-                      }}
-                      className={`
-                        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200
-                        ${chatMode === 'project' && activeChatId === chat.id 
-                          ? 'bg-gray-200 text-gray-900' 
-                          : 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-900'}
-                        truncate
-                      `}
-                    >
-                      <MessageSquare size={14} className="shrink-0" />
-                      <span className="text-[13px] font-medium truncate">{chat.title}</span>
+              {isExpanded && (
+                <div className="ml-5 space-y-0.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {hasChats ? (
+                    projectChats.map(chat => (
+                      <div
+                        key={chat.id}
+                        onClick={() => {
+                          setChatMode('project');
+                          onProjectClick(project.id);
+                          loadChatHistory(chat.id);
+                        }}
+                        className={`
+                          group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200
+                          ${chatMode === 'project' && activeChatId === chat.id 
+                            ? 'bg-gray-200 text-gray-900' 
+                            : 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-900'}
+                          truncate
+                        `}
+                      >
+                        <MessageSquare size={14} className="shrink-0" />
+                        <span className="text-[13px] font-medium truncate">{chat.title}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-gray-400 italic select-none">
+                      (No chats yet)
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

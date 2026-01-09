@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AttachedFile } from '@/types/project';
 import { LibraryArtifact } from '@/types';
 import { getRecentUploads, getRecentUploadsAsync, addRecentUpload, RecentUploadItem } from '@/lib/recent-uploads';
-import { AddFilesModal } from '@/components/AddFilesModal';
+import { LibraryPickerModal } from '@/components/LibraryPickerModal';
 import { cn } from '@/lib/utils';
 
 interface AddFilesPopoverProps {
@@ -140,75 +140,54 @@ export function AddFilesPopover({
         </PopoverTrigger>
         <PopoverContent 
           align="start" 
-          side="top" 
+          side="bottom" 
           sideOffset={8}
-          className="w-72 p-1.5 shadow-xl shadow-slate-200/50 border-slate-100 rounded-xl"
+          className="w-48 p-1 shadow-lg border-slate-100 rounded-lg"
         >
           <div className="flex flex-col gap-0.5">
             {/* Upload files or photos */}
             <button
               onClick={handleUploadClick}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
-                "hover:bg-slate-50/80 transition-colors text-left group",
-                "focus:outline-none focus:bg-slate-50"
+                "w-full flex items-center gap-3 px-3 py-2 rounded-md",
+                "hover:bg-slate-100 transition-colors text-left",
+                "focus:outline-none focus:bg-slate-100"
               )}
             >
-              <div className="w-8 h-8 rounded-lg bg-indigo-50/50 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
-                <Upload size={15} className="text-indigo-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900">
-                  Upload files
-                </div>
-                <div className="text-[11px] text-gray-500 mt-0.5 font-medium">
-                  From your device
-                </div>
-              </div>
+              <Upload size={16} className="text-slate-600" />
+              <span className="text-sm font-medium text-slate-700">
+                Upload files
+              </span>
             </button>
 
             {/* Recent uploaded */}
             <button
               onClick={handleRecentClick}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
-                "hover:bg-slate-50/80 transition-colors text-left group",
-                "focus:outline-none focus:bg-slate-50"
+                "w-full flex items-center gap-3 px-3 py-2 rounded-md",
+                "hover:bg-slate-100 transition-colors text-left",
+                "focus:outline-none focus:bg-slate-100"
               )}
             >
-              <div className="w-8 h-8 rounded-lg bg-amber-50/50 flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
-                <Clock size={15} className="text-amber-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900">
-                  Recent uploaded
-                </div>
-                <div className="text-[11px] text-gray-500 mt-0.5 font-medium">
-                  Previous conversations
-                </div>
-              </div>
+              <Clock size={16} className="text-slate-600" />
+              <span className="text-sm font-medium text-slate-700">
+                Recent uploaded
+              </span>
             </button>
 
             {/* Load from library */}
             <button
               onClick={handleLibraryClick}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
-                "hover:bg-slate-50/80 transition-colors text-left group",
-                "focus:outline-none focus:bg-slate-50"
+                "w-full flex items-center gap-3 px-3 py-2 rounded-md",
+                "hover:bg-slate-100 transition-colors text-left",
+                "focus:outline-none focus:bg-slate-100"
               )}
             >
-              <div className="w-8 h-8 rounded-lg bg-purple-50/50 flex items-center justify-center shrink-0 group-hover:bg-purple-100 transition-colors">
-                <BookOpen size={15} className="text-purple-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900">
-                  Load from library
-                </div>
-                <div className="text-[11px] text-gray-500 mt-0.5 font-medium">
-                  Saved artifacts
-                </div>
-              </div>
+              <BookOpen size={16} className="text-slate-600" />
+              <span className="text-sm font-medium text-slate-700">
+                Load from library
+              </span>
             </button>
           </div>
         </PopoverContent>
@@ -297,7 +276,7 @@ export function AddFilesPopover({
 
       {/* Library Modal */}
       {showLibraryModal && (
-        <AddFilesModal
+        <LibraryPickerModal
           open={showLibraryModal}
           onOpenChange={setShowLibraryModal}
           onFilesChange={handleLibraryFilesChange}

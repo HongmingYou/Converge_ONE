@@ -219,6 +219,56 @@ export interface WebSearchResult {
   favicon?: string;
 }
 
+// Project Source - 统一的数据源（文件/URL/搜索/Library）
+export interface ProjectSource {
+  id: string;
+  type: 'file' | 'url' | 'library' | 'search';
+  name: string;
+  content?: string; // 文件内容（文本）或URL
+  metadata: {
+    size?: string;
+    uploadedAt: number;
+    indexed: boolean; // 是否已索引用于RAG
+    mimeType?: string; // MIME类型
+    thumbnail?: string; // 预览图（用于图片/PDF）
+  };
+  // 关联的AttachedFile（如果是从attachedFiles创建的）
+  attachedFileId?: string;
+}
+
+// Project File - 项目内的文件（note/document/artifact）
+export interface ProjectFile {
+  id: string;
+  type: 'note' | 'document' | 'infographic' | 'ppt' | 'mindmap' | 'audio-clip' | 'folder';
+  title: string;
+  content: string; // 实际内容
+  parentId?: string; // 文件夹结构
+  sourceId?: string; // 关联的source ID（如果是从source创建的）
+  createdBy: 'user' | 'agent'; // 区分用户创建还是Agent生成
+  metadata: {
+    createdAt: number;
+    updatedAt: number;
+    tags: string[];
+    wordCount?: number;
+    isExpanded?: boolean; // 用于文件夹
+    isLoading?: boolean; // 用于生成中的文件
+  };
+}
+
+// Project Conversation - 项目内的对话记录
+export interface ProjectConversation {
+  id: string;
+  messages: Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+    citations?: string[]; // 引用的source IDs
+  }>;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ProjectData {
   id: string;
   name: string;
@@ -236,5 +286,9 @@ export interface ProjectData {
   knowledgeIds?: string[]; // Knowledge collection IDs for RAG
   attachedFileIds?: string[]; // Attached file IDs (deprecated, use attachedFiles)
   attachedFiles?: AttachedFile[]; // Attached files (Library, URL, Local)
+  // 统一的数据模型（新增）
+  sources?: ProjectSource[]; // 项目数据源
+  files?: ProjectFile[]; // 项目文件（note/document/artifact）
+  conversations?: ProjectConversation[]; // 项目对话记录
 }
 

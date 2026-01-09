@@ -1,4 +1,4 @@
-import { ProjectData, AgentAssetData, RecentArtifact } from '@/types/project';
+import { ProjectData, AgentAssetData, RecentArtifact, ProjectSource, ProjectFile, ProjectConversation } from '@/types/project';
 
 export const MOCK_PROJECTS: ProjectData[] = [
   {
@@ -27,6 +27,154 @@ export const MOCK_PROJECTS: ProjectData[] = [
     ],
     lastModifiedBy: { type: 'agent', name: 'Hunter' },
     lastActivity: 'Created new deck',
+    // 统一的数据模型
+    sources: [
+      {
+        id: 'source-001',
+        type: 'file',
+        name: 'Q3 2024 Financial Report.pdf',
+        content: 'Q3 2024 Financial Report\n\nRevenue: $45M\nGrowth: 45% YoY\nKey Highlights:\n- Cloud services revenue increased 45%\n- Mobile advertising recovered with 12% growth\n- Asia-Pacific region contributed 30% of new profits',
+        metadata: {
+          size: '2.4 MB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 2,
+          indexed: true,
+          mimeType: 'application/pdf',
+        },
+        attachedFileId: 'file-001',
+      },
+      {
+        id: 'source-002',
+        type: 'file',
+        name: 'Project Titan Architecture',
+        content: 'Project Titan Architecture\n\nMicroservices Architecture:\n- Service granularity needs optimization\n- Inter-service latency increasing\n- Recommendation: Service consolidation in Q4',
+        metadata: {
+          size: '856 KB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 5,
+          indexed: true,
+          mimeType: 'text/plain',
+        },
+        attachedFileId: 'file-002',
+      },
+      {
+        id: 'source-003',
+        type: 'file',
+        name: 'Competitor Analysis.txt',
+        content: 'Competitor Analysis\n\nMain competitors:\n- Company A: Strong in enterprise market\n- Company B: Leading in consumer segment\n- Company C: Emerging player with innovative features',
+        metadata: {
+          size: '124 KB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 24,
+          indexed: false,
+          mimeType: 'text/plain',
+        },
+        attachedFileId: 'file-003',
+      },
+      {
+        id: 'source-004',
+        type: 'file',
+        name: 'Meeting_Oct12.mp3',
+        content: 'Audio transcript: CEO discussion about AI strategy. "AI is not just a feature, it is the foundation."',
+        metadata: {
+          size: '12.5 MB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          indexed: true,
+          mimeType: 'audio/mpeg',
+        },
+        attachedFileId: 'file-004',
+      },
+    ],
+    files: [
+      // Agent 生成的文件 (asset)
+      {
+        id: 'file-101',
+        type: 'note',
+        title: 'Q3 核心增长摘要',
+        content: '云服务增长 45%，移动广告回暖。亚太地区表现强劲，成为新的利润增长引擎。',
+        sourceId: 'source-001',
+        createdBy: 'agent',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 2,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 2,
+          tags: ['Finance', 'Q3'],
+          wordCount: 28,
+        },
+      },
+      {
+        id: 'file-102',
+        type: 'infographic',
+        title: '竞争对手分析图',
+        content: 'Infographic content placeholder',
+        createdBy: 'agent',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24,
+          tags: ['InfoGraphic'],
+          wordCount: 0,
+        },
+      },
+      {
+        id: 'file-103',
+        type: 'audio-clip',
+        title: 'CEO 关于 AI 战略的发言',
+        content: 'Audio clip extracted from 00:14:20. "AI is not just a feature, it is the foundation."',
+        sourceId: 'source-004',
+        createdBy: 'agent',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          tags: ['Strategy'],
+          wordCount: 15,
+        },
+      },
+      // 用户创建的文件
+      {
+        id: 'file-104',
+        type: 'note',
+        title: '我的研究笔记',
+        content: '这是用户手动创建的笔记，记录一些个人想法和观察。',
+        createdBy: 'user',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+          tags: ['Personal'],
+          wordCount: 20,
+        },
+      },
+      {
+        id: 'folder-001',
+        type: 'folder',
+        title: 'Research Notes',
+        content: '',
+        createdBy: 'user',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+          tags: [],
+          isExpanded: true,
+        },
+      },
+    ],
+    conversations: [
+      {
+        id: 'conv-001',
+        messages: [
+          {
+            id: 'msg-001',
+            role: 'user',
+            content: '基于 Q3 财报，帮我总结一下主要增长点。',
+            timestamp: new Date(Date.now() - 3600000),
+          },
+          {
+            id: 'msg-002',
+            role: 'assistant',
+            content: '根据 Q3 财报，主要增长点如下：\n\n**云服务收入同比增长 45%**\n主要得益于新企业客户的签约。这表明我们在企业级市场的渗透率正在稳步提升。\n\n**移动端广告业务回暖**\n环比增长 12%，这是一个非常积极的信号，尤其是在上半年广告市场整体疲软的背景下。\n\n**海外市场拓展顺利**\n亚太地区贡献了新增利润的 30%，证明了全球化战略的有效性。',
+            timestamp: new Date(Date.now() - 3500000),
+            citations: ['source-001', 'source-002'],
+          },
+        ],
+        createdAt: Date.now() - 3600000,
+        updatedAt: Date.now() - 3500000,
+      },
+    ],
   },
   {
     id: 'proj-002',
@@ -47,6 +195,85 @@ export const MOCK_PROJECTS: ProjectData[] = [
     ],
     lastModifiedBy: { type: 'user', name: 'You' },
     lastActivity: 'Analysis completed',
+    sources: [
+      {
+        id: 'source-201',
+        type: 'file',
+        name: 'Market Research Data.csv',
+        content: 'Market Research Data\n\nCompetitor Pricing:\n- Company A: $49/month\n- Company B: $79/month\n- Company C: $99/month\n\nMarket Trends:\n- Price sensitivity increasing\n- Value-based pricing preferred',
+        metadata: {
+          size: '1.2 MB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 24,
+          indexed: true,
+          mimeType: 'text/csv',
+        },
+      },
+      {
+        id: 'source-202',
+        type: 'file',
+        name: 'Customer Feedback Survey.pdf',
+        content: 'Customer Feedback Survey Results\n\nKey Findings:\n- 65% willing to pay premium for better features\n- Price is secondary to value\n- Monthly subscription preferred over annual',
+        metadata: {
+          size: '856 KB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 20,
+          indexed: true,
+          mimeType: 'application/pdf',
+        },
+      },
+    ],
+    files: [
+      // Agent 生成的文件
+      {
+        id: 'file-201',
+        type: 'note',
+        title: '定价策略建议',
+        content: '基于市场调研和客户反馈，建议采用分层定价策略：\n- 基础版：$49/月\n- 专业版：$79/月\n- 企业版：$149/月',
+        sourceId: 'source-201',
+        createdBy: 'agent',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24,
+          tags: ['Pricing', 'Strategy'],
+          wordCount: 45,
+        },
+      },
+      // 用户创建的文件
+      {
+        id: 'file-202',
+        type: 'note',
+        title: '定价讨论记录',
+        content: '与产品团队讨论后的一些想法...',
+        createdBy: 'user',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 20,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 20,
+          tags: ['Meeting'],
+          wordCount: 10,
+        },
+      },
+    ],
+    conversations: [
+      {
+        id: 'conv-002',
+        messages: [
+          {
+            id: 'msg-201',
+            role: 'user',
+            content: '帮我分析一下市场定价策略',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
+          },
+          {
+            id: 'msg-202',
+            role: 'assistant',
+            content: '根据市场调研数据，我建议采用分层定价策略。主要竞争对手的价格区间在 $49-$99/月，我们可以在这个范围内提供更具竞争力的方案。',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 23),
+            citations: ['source-201', 'source-202'],
+          },
+        ],
+        createdAt: Date.now() - 1000 * 60 * 60 * 24,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 23,
+      },
+    ],
   },
   {
     id: 'proj-003',
@@ -67,6 +294,98 @@ export const MOCK_PROJECTS: ProjectData[] = [
     ],
     lastModifiedBy: { type: 'agent', name: 'Enter' },
     lastActivity: 'Code refactored',
+    sources: [
+      {
+        id: 'source-301',
+        type: 'file',
+        name: 'Architecture Design Doc.md',
+        content: '# Architecture Design\n\n## System Overview\n- Microservices architecture\n- API Gateway pattern\n- Event-driven communication\n\n## Key Decisions\n- Use PostgreSQL for primary data\n- Redis for caching\n- Kafka for event streaming',
+        metadata: {
+          size: '45 KB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          indexed: true,
+          mimeType: 'text/markdown',
+        },
+      },
+      {
+        id: 'source-302',
+        type: 'file',
+        name: 'Database Schema.sql',
+        content: '-- Database Schema\n\nCREATE TABLE users (\n  id UUID PRIMARY KEY,\n  email VARCHAR(255) UNIQUE,\n  created_at TIMESTAMP\n);\n\nCREATE TABLE projects (\n  id UUID PRIMARY KEY,\n  user_id UUID REFERENCES users(id),\n  name VARCHAR(255),\n  created_at TIMESTAMP\n);',
+        metadata: {
+          size: '12 KB',
+          uploadedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          indexed: false,
+          mimeType: 'text/sql',
+        },
+      },
+    ],
+    files: [
+      // Agent 生成的文件
+      {
+        id: 'file-301',
+        type: 'note',
+        title: '架构设计要点',
+        content: '系统采用微服务架构，使用 API Gateway 模式。主要技术栈：\n- PostgreSQL 作为主数据库\n- Redis 用于缓存\n- Kafka 用于事件流',
+        sourceId: 'source-301',
+        createdBy: 'agent',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          tags: ['Architecture', 'Tech'],
+          wordCount: 38,
+        },
+      },
+      {
+        id: 'file-302',
+        type: 'document',
+        title: 'Dashboard Component',
+        content: 'export function Dashboard() {\n  return (\n    <div className="grid grid-cols-3 gap-4">\n      <KPICard title="Users" value={1234} />\n      <KPICard title="Revenue" value="$45K" />\n    </div>\n  );\n}',
+        createdBy: 'agent',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 4,
+          tags: ['Code', 'React'],
+          wordCount: 15,
+        },
+      },
+      // 用户创建的文件
+      {
+        id: 'file-303',
+        type: 'note',
+        title: '技术选型思考',
+        content: '关于技术栈的一些个人思考和笔记...',
+        createdBy: 'user',
+        metadata: {
+          createdAt: Date.now() - 1000 * 60 * 60 * 24,
+          updatedAt: Date.now() - 1000 * 60 * 60 * 24,
+          tags: ['Tech'],
+          wordCount: 12,
+        },
+      },
+    ],
+    conversations: [
+      {
+        id: 'conv-003',
+        messages: [
+          {
+            id: 'msg-301',
+            role: 'user',
+            content: '帮我设计系统架构',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+          },
+          {
+            id: 'msg-302',
+            role: 'assistant',
+            content: '我建议采用微服务架构，使用 API Gateway 模式。这样可以提高系统的可扩展性和可维护性。',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2 + 1000 * 60 * 5),
+            citations: ['source-301'],
+          },
+        ],
+        createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2 + 1000 * 60 * 5,
+      },
+    ],
   },
 ];
 

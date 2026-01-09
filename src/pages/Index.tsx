@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PanelLeft } from 'lucide-react';
 import { ViewMode, Message, Artifact, ArtifactStatus, AppType, LibraryArtifact, KnowledgeCollection, KnowledgeItem, ChatMode, MentionedAsset } from '@/types';
 import { MOCK_FULL_CHATS, MOCK_LIBRARY_ARTIFACTS, MOCK_KNOWLEDGE_COLLECTIONS, MOCK_KNOWLEDGE_ITEMS, MOCK_HISTORY } from '@/data/mock';
@@ -84,9 +84,59 @@ const FOLLOW_UP_TEXTS: Record<AppType, string> = {
 
 export default function Index() {
   const navigate = useNavigate();
-  const [activeView, setActiveView] = useState<ViewMode>('chat');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize activeView from URL parameter or default to 'chat'
+  const viewParam = searchParams.get('view') as ViewMode | null;
+  const initialView = (viewParam && ['chat', 'projects', 'settings'].includes(viewParam)) 
+    ? viewParam 
+    : 'chat';
+  
+  const [activeView, setActiveView] = useState<ViewMode>(initialView);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  
+  // Update activeView when URL parameter changes (e.g., browser back/forward)
+  useEffect(() => {
+    const currentViewParam = searchParams.get('view') as ViewMode | null;
+    const newView = (currentViewParam && ['chat', 'projects', 'settings'].includes(currentViewParam)) 
+      ? currentViewParam 
+      : 'chat';
+    if (newView !== activeView) {
+      setActiveView(newView);
+    }
+  }, [searchParams]);
+  
+  // Close all artifacts helper (defined early for use in handleViewChange)
+  const closeAllArtifacts = () => {
+    setArtifacts([]);
+    setActiveArtifactId(null);
+    // Restore sidebar state
+    setIsSidebarOpen(sidebarStateBeforeCanvas);
+  };
+  
+  // Wrapper function to update both state and URL
+  const handleViewChange = (view: ViewMode) => {
+    setActiveView(view);
+    const newParams = new URLSearchParams(searchParams);
+    if (view === 'chat') {
+      // Remove view param for default chat view
+      newParams.delete('view');
+    } else {
+      // Set view param for non-default views
+      newParams.set('view', view);
+    }
+    setSearchParams(newParams, { replace: true });
+    
+    // Handle sidebar and canvas logic
+    if (!isSidebarOpen && !isCanvasOpen) {
+      setIsSidebarOpen(true);
+    }
+    // Close Canvas when changing views
+    if (view !== 'chat') {
+      closeAllArtifacts();
+    }
+  };
   
   // Chat Mode State
   const [chatMode, setChatMode] = useState<ChatMode>('default');
@@ -456,13 +506,6 @@ export default function Index() {
     }
   };
 
-  const closeAllArtifacts = () => {
-    setArtifacts([]);
-    setActiveArtifactId(null);
-    // Restore sidebar state
-    setIsSidebarOpen(sidebarStateBeforeCanvas);
-  };
-
   // Open artifact from Library
   const openArtifactFromLibrary = (libraryItem: LibraryArtifact) => {
     // Switch to chat view
@@ -703,17 +746,6 @@ export default function Index() {
     }
   };
 
-  const handleViewChange = (view: ViewMode) => {
-    setActiveView(view);
-    if (!isSidebarOpen && !isCanvasOpen) {
-      setIsSidebarOpen(true);
-    }
-    // Close Canvas when changing views
-    if (view !== 'chat') {
-      closeAllArtifacts();
-    }
-  };
-
   // Get current artifact status for ChatView
   const currentArtifact = artifacts.find(a => a.id === activeArtifactId);
   const currentArtifactStatus = currentArtifact?.status || 'idle';
@@ -760,32 +792,18 @@ export default function Index() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full relative bg-[#FDFDFD]">
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#FDFDFD]/80 backdrop-blur-md border-b border-gray-100/50">
-          <div className="flex items-center gap-4">
-            {/* Toggle Sidebar Button - show when sidebar is closed */}
-            {showSecondarySidebar && !isSidebarOpen && (
-              <button 
-                onClick={() => setIsSidebarOpen(true)} 
-                className="p-2 -ml-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                title="Open chat list"
-              >
-                <PanelLeft size={20} />
-              </button>
-            )}
-
-            {/* Canvas indicator */}
-            {isCanvasOpen && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-medium text-gray-600">
-                  {artifacts.length} artifact{artifacts.length > 1 ? 's' : ''} open
-                </span>
-              </div>
-            )}
-          </div>
-
-        </header>
+        {/* Top Navigation Bar - Only show sidebar toggle when sidebar is closed */}
+        {showSecondarySidebar && !isSidebarOpen && (
+          <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#FDFDFD]/80 backdrop-blur-md border-b border-gray-100/50">
+            <button 
+              onClick={() => setIsSidebarOpen(true)} 
+              className="p-2 -ml-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Open chat list"
+            >
+              <PanelLeft size={20} />
+            </button>
+          </header>
+        )}
 
         {/* Content Area with Canvas Split */}
         <div className="flex-1 flex overflow-hidden">
