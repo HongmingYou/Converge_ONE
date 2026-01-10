@@ -7,7 +7,7 @@ import { appRegistry } from '@/lib/app-registry';
 import { ArtifactContextData, KnowledgeCollection, AIModel, LibraryArtifact } from '@/types';
 import type { AppRecommendation as AppRecommendationType } from '@/types/onboarding';
 import { ProjectData, AttachedFile } from '@/types/project';
-import { AddFilesButton } from './AddFilesButton';
+import { AddFilesButton } from './UnifiedAddFiles';
 import { FloatingAgentBackground } from './FloatingAgentBackground';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 

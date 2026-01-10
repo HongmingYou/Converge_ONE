@@ -6,7 +6,7 @@ import { Folder } from 'lucide-react';
 import { AttachedFile } from '@/types/project';
 import { LibraryArtifact } from '@/types';
 import { format } from 'date-fns';
-import { AddFilesModal } from './AddFilesModal';
+import { UnifiedAddFilesModal as AddFilesModal } from '@/components/chat/UnifiedAddFiles';
 
 interface NewProjectModalProps {
   open: boolean;

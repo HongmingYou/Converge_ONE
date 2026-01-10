@@ -4,7 +4,7 @@ import { ArtifactContextData, AIModel, MentionedAsset, LibraryArtifact } from '@
 import { AppMentionMenu } from './AppMentionMenu';
 import { appRegistry } from '@/lib/app-registry';
 import { ModelSelector } from './ModelSelector';
-import { AddFilesPopover } from './AddFilesPopover';
+import { AddFilesPopover } from './UnifiedAddFiles';
 import { AttachedFile } from '@/types/project';
 
 interface InputAreaProps {
