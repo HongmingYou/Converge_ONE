@@ -1,13 +1,6 @@
 import { AppType } from '@/types';
 import type { AppRecommendation } from '@/types/onboarding';
-
-// App icons (should match ChatView.tsx)
-const APP_ICONS = {
-  Hunter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/screenshot-20251226-012900_54ec.png',
-  Enter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (2)_aeae.png',
-  Combos: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (3)_6a15.png',
-  Framia: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (4)_ef96.png',
-};
+import { APP_ICONS } from '@/lib/app-icons';
 
 // Keywords for each app
 const APP_KEYWORDS: Record<string, string[]> = {

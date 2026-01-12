@@ -1,5 +1,6 @@
 import { MCPApp, AppProvider } from '@/types/mcp';
 import { AppType } from '@/types';
+import { APP_ICONS } from '@/lib/app-icons';
 
 /**
  * App Registry - 应用注册中心
@@ -120,12 +121,6 @@ class AppRegistry {
    * 初始化内置应用
    */
   private registerBuiltInApps(): void {
-    const APP_ICONS = {
-      Hunter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/screenshot-20251226-012900_54ec.png',
-      Enter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (2)_aeae.png',
-      Combos: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (3)_6a15.png',
-      Framia: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (4)_ef96.png',
-    };
 
     // Framia
     this.register({

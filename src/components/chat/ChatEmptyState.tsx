@@ -10,13 +10,7 @@ import { ProjectData, AttachedFile } from '@/types/project';
 import { AddFilesButton } from './UnifiedAddFiles';
 import { FloatingAgentBackground } from './FloatingAgentBackground';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
-
-const APP_ICONS = {
-  hunter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/screenshot-20251226-012900_54ec.png',
-  enter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (2)_aeae.png',
-  combos: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (3)_6a15.png',
-  framia: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (4)_ef96.png',
-};
+import { APP_ICONS_LOWER } from '@/lib/app-icons';
 
 const QUICK_ACTIONS = [
   { 
@@ -167,14 +161,11 @@ export function ChatEmptyState({
       <>
         <div ref={containerRef} className="min-h-full w-full flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-700 relative overflow-visible">
           <div className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl relative z-10 min-h-[calc(100vh-120px)]">
-            {/* Title and Subtitle */}
+            {/* Title */}
             <div className="mb-8 text-center">
               <h1 className="text-4xl font-bold text-gray-900 tracking-tight mb-3">
                 {project.name}
               </h1>
-              <p className="text-lg text-gray-500">
-                {project.description || 'Chat with your project data and get AI-powered insights'}
-              </p>
             </div>
 
             {/* Toolbar Row: Add Files, Deep Work, Settings */}

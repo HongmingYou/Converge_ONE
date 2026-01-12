@@ -24,6 +24,7 @@ import { useFileAttachment } from '@/hooks/use-file-attachment';
 import { cn, formatTimeAgo, getFileIconType } from '@/lib/utils';
 import { LibraryPickerModal } from '@/components/LibraryPickerModal';
 import { RecentUploadItem } from '@/lib/recent-uploads';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // File icon component
 function FileIcon({ file, size = 16 }: { file: { type?: string; source?: string }; size?: number }) {
@@ -183,7 +184,17 @@ export function AddFilesPopover({
           </DialogHeader>
           <div className="mt-2">
             {isLoadingRecent ? (
-              <div className="py-8 text-center text-sm text-gray-500">Loading...</div>
+              <div className="py-8 space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-3">
+                    <Skeleton className="w-10 h-10 rounded" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : recentUploads.length === 0 ? (
               <div className="py-8 text-center text-sm text-gray-500">No recent uploads found</div>
             ) : (

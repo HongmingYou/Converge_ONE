@@ -2,6 +2,7 @@ import React from 'react';
 import { MessageSquare, Folder, Settings, Bell } from 'lucide-react';
 import { ViewMode } from '@/types';
 import { ProjectData } from '@/types/project';
+import { CONVERGE_LOGO } from '@/lib/app-icons';
 
 interface PrimarySidebarProps {
   activeView: ViewMode;
@@ -31,7 +32,7 @@ export function PrimarySidebar({
         className="w-10 h-10 flex items-center justify-center mb-4 cursor-pointer hover:opacity-90 transition-opacity group relative"
       >
          <img 
-           src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/image_remove_bg_5abc.png" 
+           src={CONVERGE_LOGO} 
            alt="Logo" 
            className="w-8 h-8 object-contain brightness-0 invert" 
          />

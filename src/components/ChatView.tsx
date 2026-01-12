@@ -10,9 +10,7 @@ import { InputArea } from './chat/InputArea';
 import type { AppRecommendation as AppRecommendationType } from '@/types/onboarding';
 import { ProjectData, AttachedFile } from '@/types/project';
 import { appRegistry } from '@/lib/app-registry';
-
-// Converge AI Logo URL
-const CONVERGE_LOGO = 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/image_remove_bg_5abc.png';
+import { CONVERGE_LOGO } from '@/lib/app-icons';
 
 // Render text with inline @App badges
 function renderTextWithMentions(text: string): React.ReactNode {

@@ -1,5 +1,6 @@
 import { Message, KnowledgeItem, Agent, LibraryArtifact, KnowledgeCollection } from '@/types';
 import { CardData } from '@/types/project';
+import { APP_ICONS_LOWER } from '@/lib/app-icons';
 
 // Chat History - Showcases multi-app workflows
 export const MOCK_HISTORY = [
@@ -10,13 +11,8 @@ export const MOCK_HISTORY = [
   { id: '5', title: '竞品分析与营销海报', time: 'Previous 7 Days', projectId: 'proj-001' }, // Q3 Competitor Analysis
 ];
 
-// APP Icons
-const APP_ICONS = {
-  hunter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/screenshot-20251226-012900_54ec.png',
-  enter: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (2)_aeae.png',
-  combos: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (3)_6a15.png',
-  framia: 'https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100000006/whiteboard_exported_image (4)_ef96.png',
-};
+// APP Icons (using unified constants)
+const APP_ICONS = APP_ICONS_LOWER;
 
 // Full Chat Conversations
 export const MOCK_FULL_CHATS: Record<string, Message[]> = {
