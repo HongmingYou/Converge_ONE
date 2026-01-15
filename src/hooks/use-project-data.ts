@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { useProjects } from '@/context/ProjectContext';
-import { ProjectSource, ProjectFile, AttachedFile } from '@/types/project';
+import { ProjectSource, ProjectFile, AttachedFile, ProjectConversation } from '@/types/project';
 import { DataSource, Note, ChatMessage } from '@/types/desk';
 import { formatTimeAgo } from '@/lib/utils';
 
@@ -84,6 +84,7 @@ export interface UseProjectDataReturn {
   sources: DataSource[];
   notes: Note[];
   chatHistory: ChatMessage[];
+  conversations: ProjectConversation[];
   attachedFiles: AttachedFile[];
 
   // Update functions
@@ -139,6 +140,10 @@ export function useProjectData({ projectId }: UseProjectDataOptions): UseProject
       timestamp: msg.timestamp,
       citations: msg.citations?.map(String),
     }));
+  }, [project]);
+
+  const conversations = useMemo<ProjectConversation[]>(() => {
+    return project?.conversations || [];
   }, [project]);
 
   const attachedFiles = useMemo<AttachedFile[]>(() => {
@@ -271,8 +276,8 @@ export function useProjectData({ projectId }: UseProjectDataOptions): UseProject
       const firstConversation = conversations[0] || {
         id: 'default',
         messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
 
       const updatedMessages = messages.map((msg) => ({
@@ -305,8 +310,8 @@ export function useProjectData({ projectId }: UseProjectDataOptions): UseProject
       const firstConversation = conversations[0] || {
         id: 'default',
         messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
 
       const newMessage = {
@@ -376,6 +381,7 @@ export function useProjectData({ projectId }: UseProjectDataOptions): UseProject
     sources,
     notes,
     chatHistory,
+    conversations,
     attachedFiles,
     updateProject,
     updateSources,

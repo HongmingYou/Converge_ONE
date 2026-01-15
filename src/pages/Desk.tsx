@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PanelLeft, PanelRight } from 'lucide-react';
@@ -12,6 +12,7 @@ import { UnifiedAddFilesModal } from '@/components/chat/UnifiedAddFiles';
 import { useProjectData } from '@/hooks/use-project-data';
 import { FileTreePanel, ChatPanel, EditorPanel } from '@/components/desk';
 import { DataSource, Note, ActiveItem, ChatMessage } from '@/types/desk';
+import type { ProjectConversation } from '@/types/project';
 
 export default function Desk() {
   const { projectId } = useParams();
@@ -22,14 +23,16 @@ export default function Desk() {
     project,
     sources,
     notes,
-    chatHistory,
+    conversations,
     attachedFiles,
     handleFilesChange,
+    updateProject,
   } = useProjectData({ projectId });
 
   // Local UI state (not persisted)
   const [localNotes, setLocalNotes] = useState<Note[]>([]);
   const [localChatHistory, setLocalChatHistory] = useState<ChatMessage[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSources, setShowSources] = useState(true);
@@ -55,8 +58,83 @@ export default function Desk() {
   }, [notes]);
 
   useEffect(() => {
-    setLocalChatHistory(chatHistory);
-  }, [chatHistory]);
+    if (!conversations || conversations.length === 0) {
+      setLocalChatHistory([]);
+      setActiveConversationId(null);
+      return;
+    }
+
+    const hasActive = activeConversationId && conversations.some((c) => c.id === activeConversationId);
+    const nextActiveId = hasActive ? activeConversationId : conversations[0].id;
+    if (nextActiveId !== activeConversationId) setActiveConversationId(nextActiveId);
+
+    const activeConv = conversations.find((c) => c.id === nextActiveId) || conversations[0];
+    const mapped = activeConv.messages.map((msg) => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      citations: msg.citations?.map(String),
+    }));
+    setLocalChatHistory(mapped);
+  }, [conversations, activeConversationId]);
+
+  const conversationSummaries = useMemo(() => {
+    const list = (conversations || []).map((c: ProjectConversation) => {
+      const firstUser = c.messages.find((m) => m.role === 'user');
+      const lastMsg = c.messages[c.messages.length - 1];
+      const title = (firstUser?.content || 'New chat').trim().slice(0, 36) || 'New chat';
+      const preview = (lastMsg?.content || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+      return {
+        id: c.id,
+        title,
+        updatedAt: c.updatedAt,
+        messageCount: c.messages.length,
+        preview,
+      };
+    });
+    return list.sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [conversations]);
+
+  const ensureConversationExists = useCallback((): string | null => {
+    if (!projectId || !project) return null;
+    if (project.conversations && project.conversations.length > 0) return project.conversations[0].id;
+    const newId = `conv-${Date.now()}`;
+    updateProject(projectId, {
+      conversations: [
+        {
+          id: newId,
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ],
+    });
+    return newId;
+  }, [projectId, project, updateProject]);
+
+  const handleNewChat = useCallback(() => {
+    if (!projectId || !project) return;
+    const newId = `conv-${Date.now()}`;
+    const nextConversations: ProjectConversation[] = [
+      {
+        id: newId,
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+      ...(project.conversations || []),
+    ];
+    updateProject(projectId, { conversations: nextConversations });
+    setActiveConversationId(newId);
+    setLocalChatHistory([]);
+    setInput('');
+    setIsAIThinking(false);
+  }, [projectId, project, updateProject]);
+
+  const handleSelectConversation = useCallback((conversationId: string) => {
+    setActiveConversationId(conversationId);
+  }, []);
 
   // Track scroll for header border
   useEffect(() => {
@@ -70,9 +148,47 @@ export default function Desk() {
   // Handle sending messages
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
+    const activeId = activeConversationId || ensureConversationExists();
+    if (!activeId || !projectId || !project) return;
 
     const newMsgId = Date.now().toString();
     const userInput = input.trim();
+
+    const persistConversationMessages = (messages: ChatMessage[]) => {
+      const nextConversations = (project.conversations || []).some((c) => c.id === activeId)
+        ? (project.conversations || []).map((c) =>
+            c.id === activeId
+              ? {
+                  ...c,
+                  messages: messages.map((m) => ({
+                    id: m.id,
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.timestamp,
+                    citations: m.citations,
+                  })),
+                  updatedAt: Date.now(),
+                }
+              : c
+          )
+        : [
+            {
+              id: activeId,
+              messages: messages.map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp,
+                citations: m.citations,
+              })),
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+            ...(project.conversations || []),
+          ];
+
+      updateProject(projectId, { conversations: nextConversations });
+    };
 
     // Check if it's a quick action command
     const isInfoGraphic = userInput.includes('信息图');
@@ -86,7 +202,11 @@ export default function Desk() {
       content: userInput,
       timestamp: new Date(),
     };
-    setLocalChatHistory((prev) => [...prev, userMessage]);
+    setLocalChatHistory((prev) => {
+      const next = [...prev, userMessage];
+      persistConversationMessages(next);
+      return next;
+    });
 
     setInput('');
     setIsAIThinking(true);
@@ -122,7 +242,11 @@ export default function Desk() {
           timestamp: new Date(),
           citations: [],
         };
-        setLocalChatHistory((prev) => [...prev, assistantMessage]);
+        setLocalChatHistory((prev) => {
+          const next = [...prev, assistantMessage];
+          persistConversationMessages(next);
+          return next;
+        });
       }, 500);
 
       // After 5 seconds, remove loading state
@@ -152,7 +276,11 @@ export default function Desk() {
           timestamp: new Date(),
           citations: [],
         };
-        setLocalChatHistory((prev) => [...prev, assistantMessage]);
+        setLocalChatHistory((prev) => {
+          const next = [...prev, assistantMessage];
+          persistConversationMessages(next);
+          return next;
+        });
 
         const newNote: Note = {
           id: Date.now(),
@@ -167,7 +295,7 @@ export default function Desk() {
         setLocalNotes((prev) => [newNote, ...prev]);
       }, 800);
     }
-  }, [input]);
+  }, [input, activeConversationId, ensureConversationExists, projectId, project, updateProject]);
 
   // File tree operations
   const handleCreateNote = useCallback((parentId?: string | number) => {
@@ -433,6 +561,10 @@ export default function Desk() {
               onModelChange={setSelectedModel}
               chatbotMode={chatbotMode}
               onModeChange={setChatbotMode}
+              conversations={conversationSummaries}
+              activeConversationId={activeConversationId}
+              onSelectConversation={handleSelectConversation}
+              onNewChat={handleNewChat}
               isDraggingOverInput={isDraggingOverInput}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}

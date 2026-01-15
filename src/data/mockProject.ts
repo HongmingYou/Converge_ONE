@@ -175,6 +175,48 @@ export const MOCK_PROJECTS: ProjectData[] = [
         createdAt: Date.now() - 3600000,
         updatedAt: Date.now() - 3500000,
       },
+      {
+        id: 'conv-001b',
+        messages: [
+          {
+            id: 'msg-001b-001',
+            role: 'user',
+            content: '把这份对手分析做成一个 1 页的 executive summary，给 CEO 看。',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
+          },
+          {
+            id: 'msg-001b-002',
+            role: 'assistant',
+            content:
+              '当然。下面是一页版的 Executive Summary（适合 CEO 速读）：\n\n**市场格局**\n- 竞争对手 A：企业市场强势，销售周期长但客单价高。\n- 竞争对手 B：消费端领先，品牌与渠道优势明显。\n- 竞争对手 C：新兴玩家，功能创新快但交付与稳定性待验证。\n\n**我们在 Q3 的关键优势**\n- 云服务收入同比增长 45%，企业侧扩张正在起势。\n- 亚太贡献新增利润 30%，国际化验证有效。\n\n**Q4 建议（3 条）**\n1) 企业侧：用“行业解决方案 + 成功案例”缩短决策链。\n2) 产品侧：优先补齐稳定性/集成能力，压制 C 的差异化。\n3) 增长侧：在亚太复制标杆打法，强化渠道伙伴。\n',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5.8),
+            citations: ['source-001', 'source-003'],
+          },
+        ],
+        createdAt: Date.now() - 1000 * 60 * 60 * 6,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 5.8,
+      },
+      {
+        id: 'conv-001c',
+        messages: [
+          {
+            id: 'msg-001c-001',
+            role: 'user',
+            content: '我想基于 Q3 财报做一张信息图，重点突出 45% 和 30% 这两个数字，给我文案+结构。',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20),
+          },
+          {
+            id: 'msg-001c-002',
+            role: 'assistant',
+            content:
+              '给你一个可直接交付设计的结构：\n\n**标题**：Q3 增长亮点一图读懂\n\n**主视觉（大数字）**\n- 45% YoY：云服务收入增长\n- 30%：亚太贡献新增利润\n\n**三条支撑信息（小卡片）**\n1) 企业客户签约带动收入结构优化\n2) 移动广告回暖（+12%）形成第二增长曲线\n3) 海外扩张验证：亚太成为利润引擎\n\n**页脚**：数据来源：Q3 2024 财报 + 内部项目资料',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 19.7),
+            citations: ['source-001'],
+          },
+        ],
+        createdAt: Date.now() - 1000 * 60 * 60 * 20,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 19.7,
+      },
     ],
   },
   {
@@ -273,6 +315,27 @@ export const MOCK_PROJECTS: ProjectData[] = [
         ],
         createdAt: Date.now() - 1000 * 60 * 60 * 24,
         updatedAt: Date.now() - 1000 * 60 * 60 * 23,
+      },
+      {
+        id: 'conv-002b',
+        messages: [
+          {
+            id: 'msg-002b-001',
+            role: 'user',
+            content: '给我一个定价实验（A/B）方案：怎么验证 $79 档是否合理？',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12),
+          },
+          {
+            id: 'msg-002b-002',
+            role: 'assistant',
+            content:
+              '可以用分层实验验证 $79 档：\n\n**实验设计**\n- 人群：新注册 & 近 30 天活跃\n- 方案 A：$79/月（现有）\n- 方案 B：$69/月（降价）或 $89/月（提价）\n\n**核心指标**\n- 转化率（试用→付费）\n- ARPU / 付费用户留存（D30）\n- 退款率/客服工单\n\n**注意点**\n- 同步控制权益差异，避免混淆变量\n- 至少跑满 2 周，覆盖工作日/周末行为差异',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 11.7),
+            citations: ['source-201', 'source-202'],
+          },
+        ],
+        createdAt: Date.now() - 1000 * 60 * 60 * 12,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 11.7,
       },
     ],
   },

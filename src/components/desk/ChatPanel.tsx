@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   Clock,
-  MoreHorizontal,
+  MessageSquarePlus,
   PenTool,
   ArrowRight,
   Check,
@@ -13,9 +13,18 @@ import {
   Network,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from '@/types/desk';
 import { AIModel, ChatbotMode } from '@/types';
+
+export interface ChatConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: number;
+  messageCount: number;
+  preview?: string;
+}
 
 interface ChatPanelProps {
   chatHistory: ChatMessage[];
@@ -27,6 +36,10 @@ interface ChatPanelProps {
   onModelChange: (model: AIModel) => void;
   chatbotMode: ChatbotMode;
   onModeChange: (mode: ChatbotMode) => void;
+  conversations?: ChatConversationSummary[];
+  activeConversationId?: string | null;
+  onSelectConversation?: (conversationId: string) => void;
+  onNewChat?: () => void;
   isDraggingOverInput: boolean;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void;
@@ -45,6 +58,10 @@ export function ChatPanel({
   onModelChange,
   chatbotMode,
   onModeChange,
+  conversations = [],
+  activeConversationId = null,
+  onSelectConversation,
+  onNewChat,
   isDraggingOverInput,
   onDragOver,
   onDragLeave,
@@ -53,10 +70,27 @@ export function ChatPanel({
   isCompact = false,
 }: ChatPanelProps) {
   const [showModelMenu, setShowModelMenu] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const formatConversationTime = (ts: number) => {
+    try {
+      return new Date(ts).toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+    } catch {
+      return '';
+    }
+  };
 
   // Close model menu when clicking outside
   useEffect(() => {
@@ -101,12 +135,63 @@ export function ChatPanel({
           <span className="font-medium text-sm text-gray-500">AI Assistant</span>
         </div>
         <div className="flex gap-1 items-center">
-          <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
-            <Clock size={16} />
+          <button
+            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
+            title="New chat"
+            onClick={() => onNewChat?.()}
+          >
+            <MessageSquarePlus size={16} />
           </button>
-          <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
-            <MoreHorizontal size={16} />
-          </button>
+          <Popover open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
+                title="Chat history"
+              >
+                <Clock size={16} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              side="bottom"
+              sideOffset={8}
+              className="w-[360px] p-2 rounded-2xl border border-gray-100 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.10)]"
+            >
+              <div className="flex items-center justify-between px-2 py-1.5">
+                <div className="text-xs font-semibold text-gray-600">Chat History</div>
+              </div>
+
+              <ScrollArea className="max-h-[360px]">
+                <div className="px-1 pb-1">
+                  {conversations.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-gray-400">No conversations yet.</div>
+                  ) : (
+                    conversations.map((c) => {
+                      const isActive = c.id === activeConversationId;
+                      return (
+                        <button
+                          key={c.id}
+                          className={cn(
+                            'w-full text-left px-2.5 py-2 rounded-xl transition-colors',
+                            isActive ? 'bg-orange-50' : 'hover:bg-gray-50'
+                          )}
+                          onClick={() => {
+                            onSelectConversation?.(c.id);
+                            setIsHistoryOpen(false);
+                          }}
+                        >
+                          <div className={cn('text-[15px] font-semibold text-gray-900 truncate', isActive && 'text-orange-900')}>
+                            {c.title || 'New chat'}
+                          </div>
+                          <div className="mt-0.5 text-[12px] text-gray-400">{formatConversationTime(c.updatedAt)}</div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
