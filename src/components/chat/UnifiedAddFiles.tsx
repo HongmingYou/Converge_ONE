@@ -20,11 +20,13 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AttachedFile } from '@/types/project';
 import { LibraryArtifact } from '@/types';
+import { WebSearchResult } from '@/types/project';
 import { useFileAttachment } from '@/hooks/use-file-attachment';
 import { cn, formatTimeAgo, getFileIconType } from '@/lib/utils';
 import { LibraryPickerModal } from '@/components/LibraryPickerModal';
 import { RecentUploadItem } from '@/lib/recent-uploads';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MOCK_WEB_SEARCH_RESULTS } from '@/data/mock';
 
 // File icon component
 function FileIcon({ file, size = 16 }: { file: { type?: string; source?: string }; size?: number }) {
@@ -274,10 +276,14 @@ export function UnifiedAddFilesModal({
   libraryArtifacts = [],
   initialFiles = [],
 }: UnifiedAddFilesModalProps) {
-  const [activeTab, setActiveTab] = useState<'upload' | 'url' | 'library'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'url' | 'search' | 'library'>('upload');
   const [isDragging, setIsDragging] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<WebSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedSearchIds, setSelectedSearchIds] = useState<Set<string>>(new Set());
 
   const {
     files,
@@ -298,6 +304,9 @@ export function UnifiedAddFilesModal({
     if (open) {
       setFiles(initialFiles);
       setUrlInput('');
+      setSearchQuery('');
+      setSearchResults([]);
+      setSelectedSearchIds(new Set());
       setActiveTab('upload');
     }
   }, [open, initialFiles, setFiles]);
@@ -325,6 +334,74 @@ export function UnifiedAddFilesModal({
     await handleAddUrl(urlInput);
     setUrlInput('');
     setIsFetchingUrl(false);
+  };
+
+  const handleSearch = async () => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) {
+      setSearchResults([]);
+      setSelectedSearchIds(new Set());
+      return;
+    }
+
+    setIsSearching(true);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    const results = MOCK_WEB_SEARCH_RESULTS.filter((r) => {
+      const hay = `${r.title} ${r.snippet} ${r.url}`.toLowerCase();
+      return hay.includes(q);
+    }).slice(0, 8);
+
+    setSearchResults(results);
+    // Default select all search results, allow user to unselect
+    const nextSelected = new Set(results.map((r) => r.id));
+    setSelectedSearchIds(nextSelected);
+
+    // Sync selected search results into files (keep non-search files intact)
+    const selectedSearchFiles: AttachedFile[] = results.map((r) => ({
+      id: `search-${r.id}`,
+      source: 'search',
+      name: r.title,
+      url: r.url,
+      description: r.snippet,
+      searchResultId: r.id,
+    }));
+    setFiles((prev) => {
+      const nonSearch = prev.filter((f) => f.source !== 'search');
+      return [...nonSearch, ...selectedSearchFiles];
+    });
+    setIsSearching(false);
+  };
+
+  const toggleSearchResult = (result: WebSearchResult) => {
+    setSelectedSearchIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(result.id)) {
+        next.delete(result.id);
+      } else {
+        next.add(result.id);
+      }
+      return next;
+    });
+
+    const fileId = `search-${result.id}`;
+    const existing = files.find((f) => f.id === fileId);
+    if (existing) {
+      removeFile(fileId);
+      return;
+    }
+
+    setFiles((prev) => [
+      ...prev,
+      {
+        id: fileId,
+        source: 'search',
+        name: result.title,
+        url: result.url,
+        description: result.snippet,
+        searchResultId: result.id,
+      },
+    ]);
   };
 
   const handleClose = () => {
@@ -365,10 +442,10 @@ export function UnifiedAddFilesModal({
 
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as 'upload' | 'url' | 'library')}
+          onValueChange={(v) => setActiveTab(v as 'upload' | 'url' | 'search' | 'library')}
           className="flex-1 flex flex-col min-h-0"
         >
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload" className="flex items-center gap-2">
               <Upload size={14} />
               Upload
@@ -376,6 +453,10 @@ export function UnifiedAddFilesModal({
             <TabsTrigger value="url" className="flex items-center gap-2">
               <LinkIcon size={14} />
               URL
+            </TabsTrigger>
+            <TabsTrigger value="search" className="flex items-center gap-2">
+              <Search size={14} />
+              Search
             </TabsTrigger>
             <TabsTrigger value="library" className="flex items-center gap-2">
               <BookOpen size={14} />
@@ -444,6 +525,72 @@ export function UnifiedAddFilesModal({
               </div>
             </TabsContent>
 
+            {/* Search Tab */}
+            <TabsContent value="search" className="flex-1 flex flex-col min-h-0 mt-0">
+              <div className="space-y-4 flex-1 flex flex-col min-h-0">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search the web (enter query)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="flex-1"
+                  />
+                  <Button onClick={handleSearch} disabled={!searchQuery.trim() || isSearching}>
+                    {isSearching ? <Loader2 size={16} className="animate-spin" /> : 'Search'}
+                  </Button>
+                </div>
+
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="space-y-1">
+                    {!searchQuery.trim() ? (
+                      <div className="py-10 text-center text-sm text-gray-500">
+                        Enter a query to search and import up to 8 URLs.
+                      </div>
+                    ) : isSearching ? (
+                      <div className="py-10 text-center text-sm text-gray-500">Searching…</div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-gray-500">No results found.</div>
+                    ) : (
+                      searchResults.map((r) => {
+                        const isSelected = selectedSearchIds.has(r.id);
+                        return (
+                          <button
+                            key={r.id}
+                            onClick={() => toggleSearchResult(r)}
+                            className={cn(
+                              'w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors',
+                              isSelected ? 'bg-emerald-50' : 'hover:bg-gray-50'
+                            )}
+                          >
+                            {r.favicon ? (
+                              <img src={r.favicon} alt="" className="w-4 h-4 rounded shrink-0 mt-0.5" />
+                            ) : (
+                              <div className="w-4 h-4 rounded bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+                                <Search size={10} className="text-gray-400" />
+                              </div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">{r.title}</div>
+                              <div className="text-xs text-gray-500 truncate mt-0.5">{r.url}</div>
+                              <div className="text-xs text-gray-500 mt-1 truncate">{r.snippet}</div>
+                            </div>
+
+                            {isSelected ? (
+                              <Check size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                            ) : (
+                              <div className="w-4 h-4 rounded border border-gray-300 shrink-0 mt-0.5" />
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </TabsContent>
+
             {/* Library Tab */}
             <TabsContent value="library" className="flex-1 flex flex-col min-h-0 mt-0">
               {libraryArtifacts.length === 0 ? (
@@ -497,8 +644,8 @@ export function UnifiedAddFilesModal({
           </div>
         </Tabs>
 
-        {/* Selected Files List */}
-        {files.length > 0 && (
+        {/* Selected Files List (hidden for Search flow) */}
+        {activeTab !== 'search' && files.length > 0 && (
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="text-xs font-medium text-gray-500 mb-2">Selected Files ({files.length})</div>
             <ScrollArea className="max-h-32">
