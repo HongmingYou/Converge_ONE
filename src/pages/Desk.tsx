@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PanelLeft, PanelRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import type { ProjectConversation } from '@/types/project';
 export default function Desk() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Use the project data hook for simplified data flow
   const {
@@ -56,6 +57,26 @@ export default function Desk() {
   useEffect(() => {
     setLocalNotes(notes);
   }, [notes]);
+
+  // Handle file query parameter for auto-opening files
+  useEffect(() => {
+    const fileId = searchParams.get('file');
+    if (fileId && notes.length > 0) {
+      // Find the note with the matching ID
+      const targetNote = notes.find((note) => note.id.toString() === fileId);
+      if (targetNote) {
+        // Auto-select the file
+        handleItemSelect({
+          id: targetNote.id,
+          type: 'note',
+          data: targetNote,
+        });
+        // Clear the file parameter from URL to keep it clean
+        searchParams.delete('file');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, notes, handleItemSelect, setSearchParams]);
 
   useEffect(() => {
     if (!conversations || conversations.length === 0) {

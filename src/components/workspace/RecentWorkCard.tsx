@@ -39,7 +39,6 @@ export function RecentWorkCard({ artifact, onClick }: RecentWorkCardProps) {
       onClick(artifact);
     } else {
       // Default behavior: navigate to project write mode with file auto-opened
-      // TODO: Implement navigation to project write mode with file ID
       navigate(`/project/${artifact.projectId}?file=${artifact.id}`);
     }
   };
